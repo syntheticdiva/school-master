@@ -17,9 +17,6 @@ public class Notification {
     @Column(nullable = false)
     private String eventId;
 
-    @Column(nullable = false)
-    private String subscriberUrl;
-
     @Enumerated(EnumType.STRING)
     private NotificationStatus status;
 

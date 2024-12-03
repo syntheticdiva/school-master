@@ -1,9 +1,6 @@
 package school.mapper;
 
-import org.mapstruct.BeanMapping;
-import org.mapstruct.Mapper;
-import org.mapstruct.MappingTarget;
-import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.mapstruct.*;
 import school.dto.SchoolCreateDTO;
 import school.dto.SchoolEntityDTO;
 import school.entity.SchoolEntity;
@@ -13,7 +10,8 @@ public interface SchoolMapper {
     // Маппинг для создания
     SchoolEntity toEntity(SchoolCreateDTO createDTO);
 
-    // Маппинг для преобразования Entity в EntityDTO
+    // Явное указание маппинга ID
+    @Mapping(source = "id", target = "id")
     SchoolEntityDTO toDto(SchoolEntity entity);
 
     // Маппинг Entity из EntityDTO
@@ -22,5 +20,4 @@ public interface SchoolMapper {
     // Маппинг для обновления существующей сущности
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntityFromDto(SchoolEntityDTO entityDTO, @MappingTarget SchoolEntity entity);
-
 }

@@ -2,8 +2,8 @@ package school.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -14,10 +14,8 @@ import org.springframework.web.client.RestTemplate;
 import school.dto.EventDto;
 import school.entity.Notification;
 import school.entity.SchoolEvent;
-import school.entity.Subscriber;
 import school.enums.NotificationStatus;
 import school.repository.NotificationRepository;
-import school.repository.SubscriberRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,19 +24,19 @@ import java.util.List;
 public class NotificationService {
     private static final int MAX_RETRY_ATTEMPTS = 3;
 
-    private final SubscriberRepository subscriberRepository;
     private final RestTemplate restTemplate;
     private final NotificationRepository notificationRepository;
     private final ObjectMapper objectMapper;
 
+    @Value("${listener.url}")
+    private String listenerUrl;
+
     @Autowired
     public NotificationService(
-            SubscriberRepository subscriberRepository,
             RestTemplate restTemplate,
             NotificationRepository notificationRepository,
             ObjectMapper objectMapper
     ) {
-        this.subscriberRepository = subscriberRepository;
         this.restTemplate = restTemplate;
         this.notificationRepository = notificationRepository;
         this.objectMapper = objectMapper;
@@ -47,23 +45,22 @@ public class NotificationService {
     public void sendNotification(SchoolEvent schoolEvent) {
         EventDto eventDto = createEventDto(schoolEvent);
 
-        subscriberRepository.findAll().forEach(subscriber -> {
-            Notification notification = createNotification(subscriber, eventDto, schoolEvent);
+        Notification notification = createNotification(eventDto, schoolEvent);
 
-            try {
-                sendToSubscriber(subscriber, eventDto);
-                notification.setStatus(NotificationStatus.DELIVERED);
-            } catch (Exception e) {
-                notification.setStatus(NotificationStatus.FAILED);
-            }
+        try {
+            sendToListener(eventDto);
+            notification.setStatus(NotificationStatus.DELIVERED);
+        } catch (Exception e) {
+            notification.setStatus(NotificationStatus.FAILED);
+        }
 
-            notification.setLastAttemptTime(LocalDateTime.now());
-            notificationRepository.save(notification);
-        });
+        notification.setLastAttemptTime(LocalDateTime.now());
+        notificationRepository.save(notification);
     }
 
-    private void sendToSubscriber(Subscriber subscriber, EventDto eventDto) {
-        String notificationUrl = subscriber.getUrl() + "/event";
+
+    private void sendToListener(EventDto eventDto) {
+        String notificationUrl = listenerUrl + "/event";
 
         try {
             ResponseEntity<String> response = restTemplate.exchange(
@@ -81,10 +78,9 @@ public class NotificationService {
         }
     }
 
-    private Notification createNotification(Subscriber subscriber, EventDto eventDto, SchoolEvent schoolEvent) {
+    private Notification createNotification(EventDto eventDto, SchoolEvent schoolEvent) {
         Notification notification = new Notification();
         notification.setEventId(String.valueOf(schoolEvent.getSchoolId()));
-        notification.setSubscriberUrl(subscriber.getUrl());
         notification.setCreatedAt(LocalDateTime.now());
         notification.setRetryCount(0);
 
@@ -113,9 +109,8 @@ public class NotificationService {
     private void processFailedNotification(Notification notification) {
         try {
             EventDto eventDto = parseEventPayload(notification.getEventPayload());
-            Subscriber subscriber = findSubscriberByUrl(notification.getSubscriberUrl());
 
-            sendToSubscriber(subscriber, eventDto);
+            sendToListener(eventDto);
 
             notification.setStatus(NotificationStatus.DELIVERED);
             notification.setLastAttemptTime(LocalDateTime.now());
@@ -178,11 +173,4 @@ public class NotificationService {
         }
     }
 
-    private Subscriber findSubscriberByUrl(String url) {
-        List<Subscriber> subscribers = subscriberRepository.findByUrl(url);
-        if (subscribers.isEmpty()) {
-            throw new RuntimeException("Subscriber not found");
-        }
-        return subscribers.get(0);
-    }
 }

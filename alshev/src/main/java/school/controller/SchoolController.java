@@ -2,6 +2,7 @@ package school.controller;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Controller;
@@ -12,13 +13,25 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import school.dto.SchoolCreateDTO;
 import school.dto.SchoolEntityDTO;
+import school.exception.ResourceNotFoundException;
+import school.exception.SchoolUpdateException;
+import school.mapper.SchoolMapper;
+import school.repository.SchoolRepository;
 import school.service.SchoolService;
+import school.service.ThreadService;
 
 @Controller
 @RequestMapping(SchoolController.BASE_URL)
 @Slf4j
 public class SchoolController {
     private final SchoolService schoolService;
+
+    private final ThreadService threadService;
+
+    private final SchoolRepository schoolRepository;
+
+    private final SchoolMapper schoolMapper;
+
 
     // URL константы
     public static final String BASE_URL = "/schools";
@@ -41,8 +54,12 @@ public class SchoolController {
     private static final String SUCCESS_DELETE_MESSAGE = "School deleted successfully!";
     private static final String ERROR_DELETE_MESSAGE = "Error deleting school";
 
-    public SchoolController(SchoolService schoolService) {
+    @Autowired
+    public SchoolController(SchoolService schoolService, ThreadService threadService, SchoolRepository schoolRepository, SchoolMapper schoolMapper) {
         this.schoolService = schoolService;
+        this.threadService = threadService;
+        this.schoolRepository = schoolRepository;
+        this.schoolMapper = schoolMapper;
     }
 
     @GetMapping
@@ -87,7 +104,7 @@ public class SchoolController {
         }
 
         try {
-            SchoolEntityDTO createdSchool = schoolService.create(schoolCreateDTO);
+            SchoolCreateDTO createdSchool = schoolService.create(schoolCreateDTO);
             redirectAttributes.addFlashAttribute("successMessage", SUCCESS_CREATE_MESSAGE);
             return "redirect:" + BASE_URL;
         } catch (Exception e) {
@@ -112,24 +129,35 @@ public class SchoolController {
                                BindingResult result,
                                RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
+            log.info("result has error");
             return EDIT_VIEW;
         }
+
         try {
             schoolService.update(id, schoolDTO);
+
             redirectAttributes.addFlashAttribute("successMessage", SUCCESS_UPDATE_MESSAGE);
+            log.info("School updated successfully");
+
             return "redirect:" + BASE_URL;
-        } catch (Exception e) {
+        } catch (ResourceNotFoundException e) {
+            log.error("School not found with id: " + id, e);
+            redirectAttributes.addFlashAttribute("errorMessage", ERROR_UPDATE_MESSAGE);
+            return "redirect:" + BASE_URL + EDIT_URL.replace("{id}", id.toString());
+        } catch (SchoolUpdateException e) {
             log.error("Error while updating school", e);
             redirectAttributes.addFlashAttribute("errorMessage", ERROR_UPDATE_MESSAGE);
             return "redirect:" + BASE_URL + EDIT_URL.replace("{id}", id.toString());
         }
     }
-
     @GetMapping(DELETE_URL)
     public String deleteSchool(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
-            schoolService.deleteById(id);
+            schoolService.delete(id);
             redirectAttributes.addFlashAttribute("successMessage", SUCCESS_DELETE_MESSAGE);
+        } catch (ResourceNotFoundException e) {
+            log.error("School not found with id: " + id, e);
+            redirectAttributes.addFlashAttribute("errorMessage", ERROR_DELETE_MESSAGE + " - School not found");
         } catch (Exception e) {
             log.error("Error while deleting school", e);
             redirectAttributes.addFlashAttribute("errorMessage", ERROR_DELETE_MESSAGE);
