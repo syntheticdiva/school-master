@@ -34,8 +34,8 @@ public class SchoolNotificationThread extends Thread {
     }
 
     public void addSchoolCreated(SchoolEntityDTO schoolEntityDTO) {
-        log.info("Adding created school to thread: " + schoolEntityDTO); // Логируем добавление школы
-        createdSchools.add(schoolEntityDTO); // Убедитесь, что здесь передается DTO с установленным ID
+        log.info("Adding created school to thread: " + schoolEntityDTO);
+        createdSchools.add(schoolEntityDTO);
     }
     public void addSchoolUpdated (SchoolUpdateDto schoolUpdateDto){
 

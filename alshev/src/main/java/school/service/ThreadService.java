@@ -42,30 +42,3 @@ public class ThreadService {
         schoolNotificationThread.addSchoolDeleted(schoolEntityDTO);
     }
 }
-//@Service
-//public class ThreadService {
-//    private  SchoolNotificationThread schoolNotificationThread = null;
-//
-//    private void checkAndStart(){
-//        if (schoolNotificationThread != null)
-//            return;
-//        schoolNotificationThread = new SchoolNotificationThread();
-//        schoolNotificationThread.start();
-//    }
-//    public void addSubscriber (SubscriberDto subscriberDto){
-//        checkAndStart();
-//        schoolNotificationThread.addSubscriber(subscriberDto);
-//    }
-//    public void addSchoolUpdated (SchoolUpdateDto schoolUpdateDto){
-//        checkAndStart();
-//        schoolNotificationThread.addSchoolUpdated(schoolUpdateDto);
-//    }
-//    public void addSchoolCreated (SchoolCreateDTO schoolCreateDTO){
-//        checkAndStart();
-//        schoolNotificationThread.addSchoolCreated(schoolCreateDTO);
-//    }
-//    public void addSchoolDeleted (SchoolEntityDTO schoolEntityDTO){
-//        checkAndStart();
-//        schoolNotificationThread.addSchoolDeleted(schoolEntityDTO);
-//    }
-//}

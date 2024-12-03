@@ -22,6 +22,7 @@ public class SchoolRestController {
 
     @Autowired
     public SchoolRestController(SchoolService schoolService) {
+
         this.schoolService = schoolService;
     }
 
@@ -49,7 +50,6 @@ public class SchoolRestController {
         SchoolEntityDTO updatedSchool = schoolService.update(id, schoolEntityDTO);
         return ResponseEntity.ok(updatedSchool);
     }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSchool(@PathVariable Long id) {
         schoolService.delete(id);

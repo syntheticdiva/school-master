@@ -45,7 +45,6 @@ public class SchoolController {
     private static final String EDIT_VIEW = "edit";
     private static final String LIST_VIEW = "all-schools";
 
-    // Константы для пагинации и сообщений
     private static final int PAGE_SIZE = 10;
     private static final String SUCCESS_CREATE_MESSAGE = "School created successfully!";
     private static final String ERROR_CREATE_MESSAGE = "Error creating school";

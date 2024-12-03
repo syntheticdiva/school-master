@@ -73,7 +73,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public String handleAllUncaughtException(Exception e, Model model) {
-        // Логируем, так как это системная ошибка
         logError("Произошла системная ошибка", e);
         return createErrorResponse(
                 "Произошла системная ошибка",

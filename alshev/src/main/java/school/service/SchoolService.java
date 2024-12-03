@@ -12,7 +12,6 @@ import school.dto.SchoolEntityDTO;
 import school.dto.SchoolUpdateDto;
 import school.dto.SubscriberDto;
 import school.entity.SchoolEntity;
-import school.entity.SchoolEvent;
 import school.exception.ResourceNotFoundException;
 import school.mapper.SchoolMapper;
 import school.repository.SchoolRepository;
@@ -30,16 +29,14 @@ import java.util.stream.Collectors;
 public class SchoolService {
     private final SchoolRepository schoolRepository;
     private final SchoolMapper schoolMapper;
-    private final NotificationService notificationService;
     private final ThreadService threadService;
     private final SchoolNotificationSender schoolNotificationSender;
     private final SchoolNotificationThread notificationThread;
 
     @Autowired
-    public SchoolService (SchoolRepository schoolRepository, SchoolMapper schoolMapper, NotificationService notificationService, ThreadService threadService, SchoolNotificationSender schoolNotificationSender, SchoolNotificationThread notificationThread) {
+    public SchoolService (SchoolRepository schoolRepository, SchoolMapper schoolMapper,  ThreadService threadService, SchoolNotificationSender schoolNotificationSender, SchoolNotificationThread notificationThread) {
         this.schoolRepository = schoolRepository;
         this.schoolMapper = schoolMapper;
-        this.notificationService = notificationService;
         this.threadService = threadService;
         this.schoolNotificationSender = schoolNotificationSender;
         this.notificationThread = notificationThread;
@@ -52,14 +49,12 @@ public class SchoolService {
 
         log.info("Saved school with ID: " + savedSchool.getId());
 
-        // Логируем созданный DTO
         SchoolEntityDTO createdDto = schoolMapper.toDto(savedSchool);
-        log.info("Created DTO: " + createdDto); // Проверяем, что ID установлен
+        log.info("Created DTO: " + createdDto);
 
-        // Передаем DTO с установленным ID в поток уведомлений
         threadService.addSchoolCreated(createdDto);
 
-        return createdDto; // Возвращаем созданный DTO
+        return createdDto;
     }
     public SchoolEntityDTO findById(Long id) {
         return schoolRepository.findById(id)
