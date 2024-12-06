@@ -32,15 +32,12 @@ public class SchoolController {
 
     private final SchoolMapper schoolMapper;
 
-
-    // URL константы
     public static final String BASE_URL = "/schools";
     public static final String CREATE_URL = "/create";
     public static final String EDIT_URL = "/edit/{id}";
     public static final String UPDATE_URL = "/update/{id}";
     public static final String DELETE_URL = "/delete/{id}";
 
-    // Константы представлений
     private static final String CREATE_VIEW = "create";
     private static final String EDIT_VIEW = "edit";
     private static final String LIST_VIEW = "all-schools";
@@ -68,7 +65,6 @@ public class SchoolController {
             return "redirect:" + BASE_URL + "?page=" + (page - 1);
         }
 
-        // Передача констант URL в модель
         model.addAttribute("baseUrl", BASE_URL);
         model.addAttribute("createUrl", CREATE_URL);
         model.addAttribute("editUrl", EDIT_URL);

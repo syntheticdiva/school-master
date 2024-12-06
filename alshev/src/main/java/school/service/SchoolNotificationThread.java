@@ -11,6 +11,9 @@ import school.dto.SubscriberDto;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+
 @Slf4j
 @Component
 public class SchoolNotificationThread extends Thread {
@@ -29,10 +32,18 @@ public class SchoolNotificationThread extends Thread {
         this.mapSubscribers.put(SubscriberDto.EVENT_ON_UPDATE, new ArrayList<>());
         this.mapSubscribers.put(SubscriberDto.EVENT_ON_DELETE, new ArrayList<>());
     }
-    public void addSubscriber (SubscriberDto subscriberDto){
+    public void addSubscriber(SubscriberDto subscriberDto) {
         mapSubscribers.get(subscriberDto.getEventType()).add(subscriberDto);
+        log.info("Added subscriber: " + subscriberDto);
     }
 
+    public List<SubscriberDto> getSubscribers() {
+        ArrayList<SubscriberDto> allSubscribers = new ArrayList<>();
+        for (ArrayList<SubscriberDto> subscribers : mapSubscribers.values()) {
+            allSubscribers.addAll(subscribers);
+        }
+        return allSubscribers;
+    }
     public void addSchoolCreated(SchoolEntityDTO schoolEntityDTO) {
         log.info("Adding created school to thread: " + schoolEntityDTO);
         createdSchools.add(schoolEntityDTO);
@@ -71,8 +82,7 @@ public class SchoolNotificationThread extends Thread {
             return true;
         }
 
-        for (int i = 0; i < subscribers.size(); i++) {
-            SubscriberDto subscriber = subscribers.get(i);
+        for (SubscriberDto subscriber : subscribers) {
             this.notificationSender.sendCreate(first, subscriber);
         }
         return true;
@@ -117,4 +127,3 @@ public class SchoolNotificationThread extends Thread {
         return true;
     }
 }
-

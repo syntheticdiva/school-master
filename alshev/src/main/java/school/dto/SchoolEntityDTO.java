@@ -1,5 +1,6 @@
 package school.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data
