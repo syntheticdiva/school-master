@@ -82,10 +82,7 @@ public class SchoolNotificationSender {
 
                 try {
                     Thread.sleep(retryInterval);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+                } catch (InterruptedException ie) {}
             }
         }
     }
@@ -126,10 +123,7 @@ public class SchoolNotificationSender {
 
                 try {
                     Thread.sleep(retryInterval);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+                } catch (InterruptedException ie) {}
             }
         }
     }
@@ -177,10 +171,7 @@ public class SchoolNotificationSender {
 
                 try {
                     Thread.sleep(retryInterval);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+                } catch (InterruptedException ie) {}
             }
         }
     }
