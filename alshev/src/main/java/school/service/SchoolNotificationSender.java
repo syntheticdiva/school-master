@@ -7,122 +7,181 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import school.dto.*;
-import school.entity.NotificationStatus;
 import school.enums.NotificationType;
-import school.mapper.SubscriberMapper;
-import school.repository.NotificationStatusRepository;
-import school.repository.SubscriberRepository;
 
 import java.time.LocalDateTime;
-import java.util.List;
+
 @Slf4j
 @Service
 public class SchoolNotificationSender {
     private final RestTemplate restTemplate;
-    private final NotificationStatusRepository notificationStatusRepository;
+    private final NotificationStatusService notificationStatusService;
 
     @Autowired
     public SchoolNotificationSender(
             RestTemplate restTemplate,
-            NotificationStatusRepository notificationStatusRepository
+            NotificationStatusService notificationStatusService
     ) {
         this.restTemplate = restTemplate;
-        this.notificationStatusRepository = notificationStatusRepository;
+        this.notificationStatusService = notificationStatusService;
     }
 
     public void sendCreate(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
-        log.info("Sending creation to {} message: {}", subscriberDto.getUrl(), schoolEntityDTO);
-
-        SchoolOnCreateDto createDto = new SchoolOnCreateDto(
-                schoolEntityDTO.getId(),
-                schoolEntityDTO.getName(),
-                schoolEntityDTO.getAddress(),
-                LocalDateTime.now()
-        );
-
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                    subscriberDto.getUrl(),
-                    createDto,
-                    String.class
-            );
-
-            log.info("Creation notification sent successfully to {}. Response: {}",
-                    subscriberDto.getUrl(), response);
-
-            saveNotificationStatus(subscriberDto, NotificationType.CREATE, "доставлено", 1);
-        } catch (RestClientException e) {
-            log.error("Failed to send creation notification to {}", subscriberDto.getUrl(), e);
-
-            saveNotificationStatus(subscriberDto, NotificationType.CREATE, "не доставлено", 1);
-        }
+        sendCreateWithRetry(schoolEntityDTO, subscriberDto);
     }
 
     public void sendUpdate(SchoolUpdateDto schoolUpdateDto, SubscriberDto subscriberDto) {
-        log.info("Sending update to {} message: {}", subscriberDto.getUrl(), schoolUpdateDto);
-
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                    subscriberDto.getUrl(),
-                    schoolUpdateDto,
-                    String.class
-            );
-
-            log.info("Update notification sent successfully to {}. Response: {}",
-                    subscriberDto.getUrl(), response);
-
-            saveNotificationStatus(subscriberDto, NotificationType.UPDATE, "доставлено", 1);
-        } catch (RestClientException e) {
-            log.error("Failed to send update notification to {}", subscriberDto.getUrl(), e);
-
-            saveNotificationStatus(subscriberDto, NotificationType.UPDATE, "не доставлено", 1);
-        }
+        sendUpdateWithRetry(schoolUpdateDto, subscriberDto);
     }
 
     public void sendDelete(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
-        log.info("Sending deletion to {} message: {}", subscriberDto.getUrl(), schoolEntityDTO);
+        sendDeleteWithRetry(schoolEntityDTO, subscriberDto);
+    }
 
-        SchoolOnDeleteDto deleteDto = new SchoolOnDeleteDto(
-                schoolEntityDTO.getId(),
-                schoolEntityDTO.getName(),
-                schoolEntityDTO.getAddress()
-        );
+    public void sendCreateWithRetry(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
+        int maxRetries = 3;
+        long retryInterval = 5000;
 
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                    subscriberDto.getUrl(),
-                    deleteDto,
-                    String.class
-            );
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                SchoolOnCreateDto createDto = new SchoolOnCreateDto(
+                        schoolEntityDTO.getId(),
+                        schoolEntityDTO.getName(),
+                        schoolEntityDTO.getAddress(),
+                        LocalDateTime.now()
+                );
 
-            log.info("Deletion notification sent successfully to {}. Response: {}",
-                    subscriberDto.getUrl(), response);
+                ResponseEntity<String> response = restTemplate.postForEntity(
+                        subscriberDto.getUrl(),
+                        createDto,
+                        String.class
+                );
 
-            saveNotificationStatus(subscriberDto, NotificationType.DELETE, "доставлено", 1);
-        } catch (RestClientException e) {
-            log.error("Failed to send deletion notification to {}", subscriberDto.getUrl(), e);
+                log.info("Creation notification sent successfully to {}. Response: {}",
+                        subscriberDto.getUrl(), response);
 
-            saveNotificationStatus(subscriberDto, NotificationType.DELETE, "не доставлено", 1);
+                notificationStatusService.saveNotificationStatus(
+                        subscriberDto,
+                        NotificationType.CREATE,
+                        "доставлено",
+                        attempt
+                );
+                return;
+            } catch (RestClientException e) {
+                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, maxRetries, e);
+
+                if (attempt == maxRetries) {
+                    notificationStatusService.saveNotificationStatus(
+                            subscriberDto,
+                            NotificationType.CREATE,
+                            "не доставлено",
+                            attempt
+                    );
+                    break;
+                }
+
+                try {
+                    Thread.sleep(retryInterval);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
         }
     }
 
-    private void saveNotificationStatus(SubscriberDto subscriberDto, NotificationType type, String status, int attempts) {
-        try {
-            if (subscriberDto == null) {
-                log.error("Не удалось сохранить статус уведомления: subscriberDto равен null");
+    public void sendUpdateWithRetry(SchoolUpdateDto schoolUpdateDto, SubscriberDto subscriberDto) {
+        int maxRetries = 3;
+        long retryInterval = 5000;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                ResponseEntity<String> response = restTemplate.postForEntity(
+                        subscriberDto.getUrl(),
+                        schoolUpdateDto,
+                        String.class
+                );
+
+                log.info("Update notification sent successfully to {}. Response: {}",
+                        subscriberDto.getUrl(), response);
+
+                notificationStatusService.saveNotificationStatus(
+                        subscriberDto,
+                        NotificationType.UPDATE,
+                        "доставлено",
+                        attempt
+                );
                 return;
+            } catch (RestClientException e) {
+                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, maxRetries, e);
+
+                if (attempt == maxRetries) {
+                    notificationStatusService.saveNotificationStatus(
+                            subscriberDto,
+                            NotificationType.UPDATE,
+                            "не доставлено",
+                            attempt
+                    );
+                    break;
+                }
+
+                try {
+                    Thread.sleep(retryInterval);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
+        }
+    }
 
-            NotificationStatus notificationStatus = new NotificationStatus();
-            notificationStatus.setSubscriberId(subscriberDto.getId());
-            notificationStatus.setNotificationType(type.name());
-            notificationStatus.setStatus(status);
-            notificationStatus.setAttempts(attempts);
+    public void sendDeleteWithRetry(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
+        int maxRetries = 3;
+        long retryInterval = 5000;
 
-            notificationStatusRepository.save(notificationStatus);
-            log.info("Статус уведомления успешно сохранен: {}", notificationStatus);
-        } catch (Exception e) {
-            log.error("Ошибка при сохранении статуса уведомления: {}", e.getMessage(), e);
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                SchoolOnDeleteDto deleteDto = new SchoolOnDeleteDto(
+                        schoolEntityDTO.getId(),
+                        schoolEntityDTO.getName(),
+                        schoolEntityDTO.getAddress()
+                );
+
+                ResponseEntity<String> response = restTemplate.postForEntity(
+                        subscriberDto.getUrl(),
+                        deleteDto,
+                        String.class
+                );
+
+                log.info("Deletion notification sent successfully to {}. Response: {}",
+                        subscriberDto.getUrl(), response);
+
+                notificationStatusService.saveNotificationStatus(
+                        subscriberDto,
+                        NotificationType.DELETE,
+                        "доставлено",
+                        attempt
+                );
+                return;
+            } catch (RestClientException e) {
+                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, maxRetries, e);
+
+                if (attempt == maxRetries) {
+                    notificationStatusService.saveNotificationStatus(
+                            subscriberDto,
+                            NotificationType.DELETE,
+                            "не доставлено",
+                            attempt
+                    );
+                    break;
+                }
+
+                try {
+                    Thread.sleep(retryInterval);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
         }
     }
 }

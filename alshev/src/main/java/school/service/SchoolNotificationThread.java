@@ -25,19 +25,16 @@ public class SchoolNotificationThread extends Thread {
     private final ArrayList<SchoolEntityDTO> deletedSchools = new ArrayList<>();
     @Setter
     private final SchoolNotificationSender notificationSender;
-    private final NotificationStatusRepository notificationStatusRepository;
-    private final BlockingQueue<NotificationTask> notificationQueue = new LinkedBlockingQueue<>();
+    private final NotificationStatusService notificationStatusService;
     private final int maxRetries = 3;
     private final long retryInterval = 5000;
 
     @Autowired
     public SchoolNotificationThread(
-            SchoolNotificationSender notificationSender,
-            NotificationStatusRepository notificationStatusRepository
+            SchoolNotificationSender notificationSender, NotificationStatusService notificationStatusService
     ) {
         this.notificationSender = notificationSender;
-        this.notificationStatusRepository = notificationStatusRepository;
-
+        this.notificationStatusService = notificationStatusService;
 
         this.mapSubscribers = new HashMap<>();
         this.mapSubscribers.put(SubscriberDto.EVENT_ON_CREATE, new ArrayList<>());
@@ -132,44 +129,6 @@ public class SchoolNotificationThread extends Thread {
         return true;
     }
 
-//    private boolean checkAndSendUpdate() {
-//        if (updatedSchools.isEmpty())
-//            return false;
-//
-//        SchoolUpdateDto first = updatedSchools.get(0);
-//        updatedSchools.remove(0);
-//        ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_UPDATE);
-//
-//        if (subscribers.isEmpty()) {
-//            log.info("The message " + first.toString() + " but no subscribers");
-//            return true;
-//        }
-//
-//        for (int i = 0; i < subscribers.size(); i++) {
-//            SubscriberDto subscriber = subscribers.get(i);
-//            this.notificationSender.sendUpdate(first, subscriber);
-//        }
-//        return true;
-//    }
-
-//    private boolean checkAndSendDelete() {
-//        if (deletedSchools.isEmpty())
-//            return false;
-//
-//        SchoolEntityDTO first = deletedSchools.remove(0);
-//        ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_DELETE);
-//
-//        if (subscribers.isEmpty()) {
-//            log.info("Deleted school " + first.toString() + " but no subscribers");
-//            return true;
-//        }
-//
-//        for (int i = 0; i < subscribers.size(); i++) {
-//            SubscriberDto subscriber = subscribers.get(i);
-//            this.notificationSender.sendDelete(first, subscriber);
-//        }
-//        return true;
-//    }
 private boolean checkAndSendDelete() {
     if (deletedSchools.isEmpty())
         return false;
@@ -183,7 +142,6 @@ private boolean checkAndSendDelete() {
     }
 
     for (SubscriberDto subscriber : subscribers) {
-        // Третий параметр true указывает, что это удаление
         NotificationTask task = new NotificationTask(first, subscriber, true);
         processNotification(task);
     }
@@ -216,7 +174,7 @@ private boolean checkAndSendDelete() {
                 delivered = true;
                 log.info("Уведомление успешно доставлено: {}", task);
 
-                saveNotificationStatus(task, "доставлено", attempt + 1);
+                notificationStatusService.saveNotificationStatus(task, "доставлено", attempt + 1);
             } catch (Exception e) {
                 attempt++;
                 log.error("Ошибка при отправке уведомления: {}. Попытка {}/{}", task, attempt, maxRetries);
@@ -230,28 +188,9 @@ private boolean checkAndSendDelete() {
                     }
                 } else {
                     log.error("Не удалось доставить уведомление после {} попыток: {}", maxRetries, task);
-                    saveNotificationStatus(task, "не доставлено", attempt);
+                    notificationStatusService.saveNotificationStatus(task, "не доставлено", attempt);
                 }
             }
-        }
-    }
-
-    private void saveNotificationStatus(NotificationTask task, String status, int attempts) {
-        try {
-            if (task.getSubscriberDto() == null) {
-                log.error("Не удалось сохранить статус уведомления: subscriberDto равен null");
-                return;
-            }
-            NotificationStatus notificationStatus = new NotificationStatus();
-            notificationStatus.setSubscriberId(task.getSubscriberDto().getId());
-            notificationStatus.setNotificationType(task.getType().name());
-            notificationStatus.setStatus(status);
-            notificationStatus.setAttempts(attempts);
-
-            notificationStatusRepository.save(notificationStatus);
-            log.info("Статус уведомления успешно сохранен: {}", notificationStatus);
-        } catch (Exception e) {
-            log.error("Ошибка при сохранении статуса уведомления: {}", e.getMessage(), e);
         }
     }
 }

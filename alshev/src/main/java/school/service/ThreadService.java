@@ -22,24 +22,26 @@ public class ThreadService {
     private final SubscriberMapper subscriberMapper;
     private final SchoolNotificationSender notificationSender;
     private final NotificationStatusRepository notificationStatusRepository;
+    private final NotificationStatusService notificationStatusService;
 
     @Autowired
     public ThreadService(
             SubscriberRepository subscriberRepository,
             SubscriberMapper subscriberMapper,
             SchoolNotificationSender notificationSender,
-            NotificationStatusRepository notificationStatusRepository
+            NotificationStatusRepository notificationStatusRepository, NotificationStatusService notificationStatusService
     ) {
         this.subscriberRepository = subscriberRepository;
         this.subscriberMapper = subscriberMapper;
         this.notificationSender = notificationSender;
         this.notificationStatusRepository = notificationStatusRepository;
+        this.notificationStatusService = notificationStatusService;
     }
 
     private void checkAndStart() {
         if (schoolNotificationThread != null)
             return;
-        schoolNotificationThread = new SchoolNotificationThread(notificationSender, notificationStatusRepository);
+        schoolNotificationThread = new SchoolNotificationThread(notificationSender, notificationStatusService);
         schoolNotificationThread.start();
     }
 
