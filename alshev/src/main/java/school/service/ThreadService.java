@@ -1,26 +1,16 @@
 package school.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
-import school.dto.SchoolCreateDTO;
 import school.dto.SchoolEntityDTO;
 import school.dto.SchoolUpdateDto;
 import school.dto.SubscriberDto;
 import school.entity.SubscriberEntity;
-import school.mapper.SchoolMapper;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import school.dto.SubscriberDto;
 import school.mapper.SubscriberMapper;
 import school.repository.SubscriberRepository;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,18 +30,10 @@ public class ThreadService {
         this.subscriberRepository = subscriberRepository;
         this.subscriberMapper = subscriberMapper;
     }
-
     private void checkAndStart() {
         if (schoolNotificationThread != null)
             return;
-
         schoolNotificationThread = new SchoolNotificationThread(notificationSender);
-
-        List<SubscriberDto> existingSubscribers = getSubscribers();
-        for (SubscriberDto subscriber : existingSubscribers) {
-            schoolNotificationThread.addSubscriber(subscriber);
-        }
-
         schoolNotificationThread.start();
     }
 
