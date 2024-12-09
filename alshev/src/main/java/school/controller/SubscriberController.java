@@ -9,14 +9,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import school.dto.SubscriberDto;
-
 import school.entity.SubscriberEntity;
-import school.repository.SubscriberRepository;
 import school.service.SchoolNotificationThread;
 import school.service.SubscriberService;
 import school.service.ThreadService;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -26,14 +23,11 @@ public class SubscriberController {
     private final SubscriberService subscriberService;
     private final ThreadService threadService;
 
-    private final SchoolNotificationThread notificationThread;
-
     @Autowired
     public SubscriberController(SubscriberService subscriberService,
-                                ThreadService threadService, SchoolNotificationThread notificationThread) {
+                                ThreadService threadService) {
         this.subscriberService = subscriberService;
         this.threadService = threadService;
-        this.notificationThread = notificationThread;
     }
 
     @PostMapping

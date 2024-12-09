@@ -4,14 +4,12 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import school.dto.SchoolCreateDTO;
 import school.dto.SchoolEntityDTO;
 import school.dto.SchoolUpdateDto;
 import school.dto.SubscriberDto;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 
 @Slf4j
@@ -48,7 +46,6 @@ public class SchoolNotificationThread extends Thread {
             }
         }
     }
-
     public List<SubscriberDto> getSubscribers() {
         ArrayList<SubscriberDto> allSubscribers = new ArrayList<>();
         for (ArrayList<SubscriberDto> subscribers : mapSubscribers.values()) {
@@ -56,6 +53,7 @@ public class SchoolNotificationThread extends Thread {
         }
         return allSubscribers;
     }
+
     public void addSchoolCreated(SchoolEntityDTO schoolEntityDTO) {
         log.info("Adding created school to thread: " + schoolEntityDTO);
         createdSchools.add(schoolEntityDTO);

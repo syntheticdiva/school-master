@@ -9,6 +9,4 @@ import java.util.List;
 public interface SubscriberRepository extends JpaRepository<SubscriberEntity, Long> {
     List<SubscriberEntity> findByEntity(String entity);
 
-
-
 }
