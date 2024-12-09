@@ -7,10 +7,14 @@ import org.springframework.stereotype.Component;
 import school.dto.SchoolEntityDTO;
 import school.dto.SchoolUpdateDto;
 import school.dto.SubscriberDto;
+import school.entity.NotificationStatus;
+import school.repository.NotificationStatusRepository;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 @Slf4j
 @Component
@@ -21,10 +25,20 @@ public class SchoolNotificationThread extends Thread {
     private final ArrayList<SchoolEntityDTO> deletedSchools = new ArrayList<>();
     @Setter
     private final SchoolNotificationSender notificationSender;
+    private final NotificationStatusRepository notificationStatusRepository;
+    private final BlockingQueue<NotificationTask> notificationQueue = new LinkedBlockingQueue<>();
+    private final int maxRetries = 3;
+    private final long retryInterval = 5000;
 
     @Autowired
-    public SchoolNotificationThread(SchoolNotificationSender notificationSender) {
+    public SchoolNotificationThread(
+            SchoolNotificationSender notificationSender,
+            NotificationStatusRepository notificationStatusRepository
+    ) {
         this.notificationSender = notificationSender;
+        this.notificationStatusRepository = notificationStatusRepository;
+
+
         this.mapSubscribers = new HashMap<>();
         this.mapSubscribers.put(SubscriberDto.EVENT_ON_CREATE, new ArrayList<>());
         this.mapSubscribers.put(SubscriberDto.EVENT_ON_UPDATE, new ArrayList<>());
@@ -93,11 +107,11 @@ public class SchoolNotificationThread extends Thread {
         }
 
         for (SubscriberDto subscriber : subscribers) {
-            this.notificationSender.sendCreate(first, subscriber);
+            NotificationTask task = new NotificationTask(first, subscriber);
+            processNotification(task);
         }
         return true;
     }
-
     private boolean checkAndSendUpdate() {
         if (updatedSchools.isEmpty())
             return false;
@@ -111,29 +125,133 @@ public class SchoolNotificationThread extends Thread {
             return true;
         }
 
-        for (int i = 0; i < subscribers.size(); i++) {
-            SubscriberDto subscriber = subscribers.get(i);
-            this.notificationSender.sendUpdate(first, subscriber);
+        for (SubscriberDto subscriber : subscribers) {
+            NotificationTask task = new NotificationTask(first, subscriber);
+            processNotification(task);
         }
         return true;
     }
 
-    private boolean checkAndSendDelete() {
-        if (deletedSchools.isEmpty())
-            return false;
+//    private boolean checkAndSendUpdate() {
+//        if (updatedSchools.isEmpty())
+//            return false;
+//
+//        SchoolUpdateDto first = updatedSchools.get(0);
+//        updatedSchools.remove(0);
+//        ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_UPDATE);
+//
+//        if (subscribers.isEmpty()) {
+//            log.info("The message " + first.toString() + " but no subscribers");
+//            return true;
+//        }
+//
+//        for (int i = 0; i < subscribers.size(); i++) {
+//            SubscriberDto subscriber = subscribers.get(i);
+//            this.notificationSender.sendUpdate(first, subscriber);
+//        }
+//        return true;
+//    }
 
-        SchoolEntityDTO first = deletedSchools.remove(0);
-        ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_DELETE);
+//    private boolean checkAndSendDelete() {
+//        if (deletedSchools.isEmpty())
+//            return false;
+//
+//        SchoolEntityDTO first = deletedSchools.remove(0);
+//        ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_DELETE);
+//
+//        if (subscribers.isEmpty()) {
+//            log.info("Deleted school " + first.toString() + " but no subscribers");
+//            return true;
+//        }
+//
+//        for (int i = 0; i < subscribers.size(); i++) {
+//            SubscriberDto subscriber = subscribers.get(i);
+//            this.notificationSender.sendDelete(first, subscriber);
+//        }
+//        return true;
+//    }
+private boolean checkAndSendDelete() {
+    if (deletedSchools.isEmpty())
+        return false;
 
-        if (subscribers.isEmpty()) {
-            log.info("Deleted school " + first.toString() + " but no subscribers");
-            return true;
-        }
+    SchoolEntityDTO first = deletedSchools.remove(0);
+    ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_DELETE);
 
-        for (int i = 0; i < subscribers.size(); i++) {
-            SubscriberDto subscriber = subscribers.get(i);
-            this.notificationSender.sendDelete(first, subscriber);
-        }
+    if (subscribers.isEmpty()) {
+        log.info("Deleted school " + first.toString() + " but no subscribers");
         return true;
+    }
+
+    for (SubscriberDto subscriber : subscribers) {
+        // Третий параметр true указывает, что это удаление
+        NotificationTask task = new NotificationTask(first, subscriber, true);
+        processNotification(task);
+    }
+    return true;
+}
+    public void sendNotification(NotificationTask task) throws Exception {
+        switch (task.getType()) {
+            case CREATE:
+                notificationSender.sendCreate(task.getSchoolEntityDTO(), task.getSubscriberDto());
+                break;
+            case UPDATE:
+                notificationSender.sendUpdate(task.getSchoolUpdateDto(), task.getSubscriberDto());
+                break;
+            case DELETE:
+                notificationSender.sendDelete(task.getSchoolEntityDTO(), task.getSubscriberDto());
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported notification type: " + task.getType());
+        }
+    }
+
+
+    private void processNotification(NotificationTask task) {
+        int attempt = 0;
+        boolean delivered = false;
+
+        while (attempt < maxRetries && !delivered) {
+            try {
+                sendNotification(task);
+                delivered = true;
+                log.info("Уведомление успешно доставлено: {}", task);
+
+                saveNotificationStatus(task, "доставлено", attempt + 1);
+            } catch (Exception e) {
+                attempt++;
+                log.error("Ошибка при отправке уведомления: {}. Попытка {}/{}", task, attempt, maxRetries);
+
+                if (attempt < maxRetries) {
+                    try {
+                        Thread.sleep(retryInterval);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                } else {
+                    log.error("Не удалось доставить уведомление после {} попыток: {}", maxRetries, task);
+                    saveNotificationStatus(task, "не доставлено", attempt);
+                }
+            }
+        }
+    }
+
+    private void saveNotificationStatus(NotificationTask task, String status, int attempts) {
+        try {
+            if (task.getSubscriberDto() == null) {
+                log.error("Не удалось сохранить статус уведомления: subscriberDto равен null");
+                return;
+            }
+            NotificationStatus notificationStatus = new NotificationStatus();
+            notificationStatus.setSubscriberId(task.getSubscriberDto().getId());
+            notificationStatus.setNotificationType(task.getType().name());
+            notificationStatus.setStatus(status);
+            notificationStatus.setAttempts(attempts);
+
+            notificationStatusRepository.save(notificationStatus);
+            log.info("Статус уведомления успешно сохранен: {}", notificationStatus);
+        } catch (Exception e) {
+            log.error("Ошибка при сохранении статуса уведомления: {}", e.getMessage(), e);
+        }
     }
 }

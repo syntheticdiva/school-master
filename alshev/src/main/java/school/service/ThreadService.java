@@ -2,13 +2,13 @@ package school.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import school.dto.SchoolEntityDTO;
 import school.dto.SchoolUpdateDto;
 import school.dto.SubscriberDto;
 import school.entity.SubscriberEntity;
 import school.mapper.SubscriberMapper;
+import school.repository.NotificationStatusRepository;
 import school.repository.SubscriberRepository;
 
 import java.util.List;
@@ -18,31 +18,37 @@ import java.util.stream.Collectors;
 @Service
 public class ThreadService {
     private SchoolNotificationThread schoolNotificationThread = null;
-    @Autowired
     private final SubscriberRepository subscriberRepository;
     private final SubscriberMapper subscriberMapper;
+    private final SchoolNotificationSender notificationSender;
+    private final NotificationStatusRepository notificationStatusRepository;
 
-    @Lazy
     @Autowired
-    private SchoolNotificationSender notificationSender;
-
-    public ThreadService(SubscriberRepository subscriberRepository, SubscriberMapper subscriberMapper) {
+    public ThreadService(
+            SubscriberRepository subscriberRepository,
+            SubscriberMapper subscriberMapper,
+            SchoolNotificationSender notificationSender,
+            NotificationStatusRepository notificationStatusRepository
+    ) {
         this.subscriberRepository = subscriberRepository;
         this.subscriberMapper = subscriberMapper;
+        this.notificationSender = notificationSender;
+        this.notificationStatusRepository = notificationStatusRepository;
     }
+
     private void checkAndStart() {
         if (schoolNotificationThread != null)
             return;
-        schoolNotificationThread = new SchoolNotificationThread(notificationSender);
+        schoolNotificationThread = new SchoolNotificationThread(notificationSender, notificationStatusRepository);
         schoolNotificationThread.start();
     }
 
-public void addSubscriber(SubscriberDto subscriberDto) {
-    checkAndStart();
-    schoolNotificationThread.addSubscriber(subscriberDto);
-    log.info("Added subscriber ID={}, URL={}",
-            subscriberDto.getId(), subscriberDto.getUrl());
-}
+    public void addSubscriber(SubscriberDto subscriberDto) {
+        checkAndStart();
+        schoolNotificationThread.addSubscriber(subscriberDto);
+        log.info("Added subscriber ID={}, URL={}",
+                subscriberDto.getId(), subscriberDto.getUrl());
+    }
 
     public void removeSubscriber(Long subscriberId) {
         checkAndStart();
