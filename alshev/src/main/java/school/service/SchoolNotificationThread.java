@@ -36,6 +36,18 @@ public class SchoolNotificationThread extends Thread {
         mapSubscribers.get(subscriberDto.getEventType()).add(subscriberDto);
         log.info("Added subscriber: " + subscriberDto);
     }
+    public void removeSubscriber(Long subscriberId) {
+        for (String eventType : mapSubscribers.keySet()) {
+            ArrayList<SubscriberDto> subscribers = mapSubscribers.get(eventType);
+            for (int i = 0; i < subscribers.size(); i++) {
+                if (subscribers.get(i).getId().equals(subscriberId)) {
+                    subscribers.remove(i);
+                    log.info("Removed subscriber with ID: " + subscriberId + " for event type: " + eventType);
+                    break;
+                }
+            }
+        }
+    }
 
     public List<SubscriberDto> getSubscribers() {
         ArrayList<SubscriberDto> allSubscribers = new ArrayList<>();
@@ -78,7 +90,7 @@ public class SchoolNotificationThread extends Thread {
         ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_CREATE);
 
         if (subscribers.isEmpty()) {
-            log.info("Created school " + first.toString() + " but no subscribers");
+            log.info("Created school " + first.toString() + " but no subscribers. Current subscribers: " + getSubscribers());
             return true;
         }
 

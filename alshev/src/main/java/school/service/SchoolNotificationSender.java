@@ -11,6 +11,7 @@ import school.mapper.SubscriberMapper;
 import school.repository.SubscriberRepository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 
 //todo: написать самой на url из subscriberDto отправить schoolUpdateDto
@@ -21,16 +22,20 @@ public class SchoolNotificationSender {
     private final RestTemplate restTemplate;
     private final SubscriberRepository subscriberRepository;
     private final SubscriberMapper subscriberMapper;
+    private final ThreadService threadService;
+
 
     @Autowired
     public SchoolNotificationSender(
             RestTemplate restTemplate,
             SubscriberRepository subscriberRepository,
-            SubscriberMapper subscriberMapper
+            SubscriberMapper subscriberMapper,
+            ThreadService threadService
     ) {
         this.restTemplate = restTemplate;
         this.subscriberRepository = subscriberRepository;
         this.subscriberMapper = subscriberMapper;
+        this.threadService = threadService;
     }
 
     public void sendCreate(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
@@ -96,72 +101,32 @@ public class SchoolNotificationSender {
             log.error("Failed to send deletion notification to {}", subscriberDto.getUrl(), e);
         }
     }
+    public void notifySubscribers(String eventType, Object payload) {
+        List<SubscriberDto> subscribers = threadService.getSubscribers();
+        log.info("Notifying subscribers for event type: " + eventType + " with payload: " + payload);
+
+        for (SubscriberDto subscriber : subscribers) {
+            if (subscriber.getEventType().equals(eventType) &&
+                    subscriber.getEntity().equals(SubscriberDto.ENTITY_SCHOOL)) {
+
+                switch (eventType) {
+                    case SubscriberDto.EVENT_ON_CREATE:
+                        log.info("Sending create notification to: " + subscriber.getUrl());
+                        sendCreate((SchoolEntityDTO) payload, subscriber);
+                        break;
+                    case SubscriberDto.EVENT_ON_UPDATE:
+                        log.info("Sending update notification to: " + subscriber.getUrl());
+                        sendUpdate((SchoolUpdateDto) payload, subscriber);
+                        break;
+                    case SubscriberDto.EVENT_ON_DELETE:
+                        log.info("Sending delete notification to: " + subscriber.getUrl());
+                        sendDelete((SchoolEntityDTO) payload, subscriber);
+                        break;
+                    default:
+                        log.warn("Unknown event type: " + eventType);
+                        break;
+                }
+            }
+        }
+    }
 }
-//@Slf4j
-//@Service
-//public class SchoolNotificationSender {
-//
-//    private final RestTemplate restTemplate;
-//    private final SubscriberRepository subscriberRepository;
-//    private final SubscriberMapper subscriberMapper;
-//
-//    @Autowired
-//    public SchoolNotificationSender(RestTemplate restTemplate, SubscriberRepository subscriberRepository, SubscriberMapper subscriberMapper) {
-//        this.restTemplate = restTemplate;
-//        this.subscriberRepository = subscriberRepository;
-//        this.subscriberMapper = subscriberMapper;
-//    }
-//
-//    public void sendCreate(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
-//        log.info("Sending creation to {} message: {}", subscriberDto.getUrl(), schoolEntityDTO);
-//
-//        SchoolOnCreateDto createDto = new SchoolOnCreateDto();
-//        createDto.setSchoolId(schoolEntityDTO.getId());
-//        createDto.setName(schoolEntityDTO.getName());
-//        createDto.setAddress(schoolEntityDTO.getAddress());
-//
-//        try {
-//            ResponseEntity<String> response = restTemplate.postForEntity(
-//                    subscriberDto.getUrl(),
-//                    createDto,
-//                    String.class
-//            );
-//
-//            log.info("Notification sent successfully to {}. Response: {}",
-//                    subscriberDto.getUrl(), response);
-//        } catch (RestClientException e) {
-//            log.error("Failed to send notification to {}", subscriberDto.getUrl(), e);
-//        }
-//    }
-//
-//    public void sendUpdate(SchoolUpdateDto schoolUpdateDto, SubscriberDto subscriberDto) {
-//        log.info("Sending to " + subscriberDto.getUrl() + " message: " + schoolUpdateDto.toString());
-//
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.setContentType(MediaType.APPLICATION_JSON);
-//
-//        HttpEntity<SchoolUpdateDto> requestEntity = new HttpEntity<>(schoolUpdateDto, headers);
-//
-//        try {
-//            restTemplate.postForObject(subscriberDto.getUrl(), requestEntity, Void.class);
-//            log.info("Notification sent successfully to " + subscriberDto.getUrl());
-//        } catch (Exception e) {
-//            log.error("Failed to send notification to " + subscriberDto.getUrl(), e);
-//        }
-//    }
-//
-//    public void sendDelete(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
-//        try {
-//            SchoolOnDeleteDto deleteDto = new SchoolOnDeleteDto(
-//                    schoolEntityDTO.getId(),
-//                    schoolEntityDTO.getName(),
-//                    schoolEntityDTO.getAddress()
-//            );
-//
-//            restTemplate.postForEntity(subscriberDto.getUrl(), deleteDto, Void.class);
-//            log.info("Deletion notification sent successfully to {}", subscriberDto.getUrl());
-//        } catch (RestClientException e) {
-//            log.error("Failed to send deletion notification to {}", subscriberDto.getUrl(), e);
-//        }
-//    }
-//}

@@ -1,6 +1,7 @@
 package school.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import school.dto.SubscriberDto;
 
 import school.entity.SubscriberEntity;
 import school.repository.SubscriberRepository;
+import school.service.SchoolNotificationThread;
 import school.service.SubscriberService;
 import school.service.ThreadService;
 
@@ -24,11 +26,14 @@ public class SubscriberController {
     private final SubscriberService subscriberService;
     private final ThreadService threadService;
 
+    private final SchoolNotificationThread notificationThread;
+
     @Autowired
     public SubscriberController(SubscriberService subscriberService,
-                                ThreadService threadService) {
+                                ThreadService threadService, SchoolNotificationThread notificationThread) {
         this.subscriberService = subscriberService;
         this.threadService = threadService;
+        this.notificationThread = notificationThread;
     }
 
     @PostMapping
@@ -42,5 +47,52 @@ public class SubscriberController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Failed to add subscriber");
         }
+    }
+    @PutMapping("/{id}")
+    @Operation(summary = "Update existing subscriber")
+    public ResponseEntity<?> updateSubscriber(
+            @PathVariable Long id,
+            @Valid @RequestBody SubscriberDto subscriberDto
+    ) {
+        try {
+            SubscriberEntity updatedEntity = subscriberService.updateSubscriber(id, subscriberDto);
+            return ResponseEntity.ok(updatedEntity);
+        } catch (EntityNotFoundException e) {
+            log.error("Error updating subscriber", e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Subscriber not found");
+        } catch (Exception e) {
+            log.error("Error updating subscriber", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to update subscriber");
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete subscriber by ID")
+    public ResponseEntity<?> deleteSubscriber(@PathVariable Long id) {
+        try {
+            subscriberService.deleteSubscriber(id);
+            return ResponseEntity.ok("Subscriber deleted successfully");
+        } catch (EntityNotFoundException e) {
+            log.error("Error deleting subscriber", e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Subscriber not found");
+        } catch (Exception e) {
+            log.error("Error deleting subscriber", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to delete subscriber");
+        }
+    }
+    @GetMapping
+    @Operation(summary = "Get all subscribers")
+    public ResponseEntity<List<SubscriberDto>> getAllSubscribers() {
+        List<SubscriberDto> subscribers = subscriberService.getAllSubscribers();
+
+        if (subscribers.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.ok(subscribers);
     }
 }

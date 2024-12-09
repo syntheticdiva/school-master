@@ -49,24 +49,26 @@ public class SchoolService {
         this.subscriberRepository = subscriberRepository;
         this.subscriberMapper = subscriberMapper;
     }
+    @Transactional
+    public SchoolEntityDTO create(SchoolCreateDTO schoolCreateDTO) {
+        SchoolEntity newSchool = schoolMapper.toEntity(schoolCreateDTO);
+        SchoolEntity savedSchool = schoolRepository.save(newSchool);
 
-@Transactional
-public SchoolEntityDTO create(SchoolCreateDTO schoolCreateDTO) {
-    SchoolEntity newSchool = schoolMapper.toEntity(schoolCreateDTO);
-    SchoolEntity savedSchool = schoolRepository.save(newSchool);
+        SchoolEntityDTO createdDto = schoolMapper.toDto(savedSchool);
 
-    SchoolEntityDTO createdDto = schoolMapper.toDto(savedSchool);
+        List<SubscriberDto> subscribers = getSubscribersForSchool(savedSchool);
 
-    List<SubscriberDto> subscribers = getSubscribersForSchool(savedSchool);
-    for (SubscriberDto subscriber : subscribers) {
-        if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_CREATE)) {
-            schoolNotificationSender.sendCreate(createdDto, subscriber);
+        for (SubscriberDto subscriber : subscribers) {
+            if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_CREATE)) {
+                schoolNotificationSender.sendCreate(createdDto, subscriber);
+            }
         }
+
+        threadService.addSchoolCreated(createdDto);
+
+        return createdDto;
     }
 
-    threadService.addSchoolCreated(createdDto);
-    return createdDto;
-}
     public SchoolEntityDTO findById(Long id) {
         return schoolRepository.findById(id)
                 .map(schoolMapper::toDto)

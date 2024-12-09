@@ -10,7 +10,7 @@ public class SubscriberDto {
     public static final String EVENT_ON_CREATE = "on_create";
     public static final String EVENT_ON_UPDATE = "on_update";
     public static final String EVENT_ON_DELETE = "on_delete";
-
+    private Long id;
     @NotNull(message = "Entity type cannot be null")
     private String entity;
     @NotNull(message = "Event type cannot be null")
