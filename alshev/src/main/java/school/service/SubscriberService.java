@@ -1,10 +1,13 @@
 package school.service;
 
-import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import school.dto.SubscriberDto;
 import school.entity.SubscriberEntity;
+import school.exception.SubscriberNotFoundException;
+import school.exception.SubscriberServiceException;
 import school.mapper.SubscriberMapper;
 import school.repository.SubscriberRepository;
 
@@ -17,16 +20,18 @@ import java.util.stream.Collectors;
 public class SubscriberService {
     private final SubscriberRepository subscriberRepository;
     private final ThreadService threadService;
-    private final SubscriberMapper  subscriberMapper;
+    private final SubscriberMapper subscriberMapper;
 
     @Autowired
     public SubscriberService(SubscriberRepository subscriberRepository,
-                             ThreadService threadService, SubscriberMapper subscriberMapper ) {
+                             ThreadService threadService,
+                             SubscriberMapper subscriberMapper) {
         this.subscriberRepository = subscriberRepository;
         this.threadService = threadService;
         this.subscriberMapper = subscriberMapper;
     }
 
+    @Transactional
     public SubscriberEntity createSubscriber(SubscriberDto subscriberDto) {
         SubscriberEntity entity = new SubscriberEntity();
         entity.setEntity(
@@ -40,11 +45,17 @@ public class SubscriberService {
         entity.setUrl(subscriberDto.getUrl());
         entity.setCreatedAt(LocalDateTime.now());
 
-        return subscriberRepository.save(entity);
+        try {
+            return subscriberRepository.save(entity);
+        } catch (DataAccessException e) {
+            throw new SubscriberServiceException("Error creating subscriber due to data access issue", e);
+        }
     }
+
+    @Transactional
     public SubscriberEntity updateSubscriber(Long id, SubscriberDto subscriberDto) {
         SubscriberEntity existingEntity = subscriberRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Subscriber not found with id: " + id));
+                .orElseThrow(() -> new SubscriberNotFoundException("Subscriber not found with id: " + id));
 
         existingEntity.setEntity(
                 Optional.ofNullable(subscriberDto.getEntity())
@@ -59,16 +70,26 @@ public class SubscriberService {
                         .orElse(existingEntity.getUrl())
         );
 
-        return subscriberRepository.save(existingEntity);
+        try {
+            return subscriberRepository.save(existingEntity);
+        } catch (DataAccessException e) {
+            throw new SubscriberServiceException("Error updating subscriber due to data access issue", e);
+        }
     }
 
+    @Transactional
     public void deleteSubscriber(Long id) {
         SubscriberEntity existingEntity = subscriberRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Subscriber not found with id: " + id));
+                .orElseThrow(() -> new SubscriberNotFoundException("Subscriber not found with id: " + id));
 
-        subscriberRepository.delete(existingEntity);
-        threadService.removeSubscriber(id);
+        try {
+            subscriberRepository.delete(existingEntity);
+            threadService.removeSubscriber(id);
+        } catch (DataAccessException e) {
+            throw new SubscriberServiceException("Error deleting subscriber due to data access issue", e);
+        }
     }
+
     public List<SubscriberDto> getAllSubscribers() {
         List<SubscriberEntity> subscribers = subscriberRepository.findAll();
         return subscribers.stream()

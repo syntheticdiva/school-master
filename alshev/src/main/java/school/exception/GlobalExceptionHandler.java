@@ -1,11 +1,15 @@
 package school.exception;
 
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.servlet.NoHandlerFoundException;
@@ -23,9 +27,20 @@ import lombok.extern.slf4j.Slf4j;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    public String handleResourceNotFoundException(ResourceNotFoundException e, Model model) {
-        return createErrorResponse("Школа не найдена", e.getMessage(), model);
+    public ResponseEntity<String> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        String message = ex.getMessage() +
+                " - Проверьте, существует ли запрашиваемый ресурс.";
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(message);
+    }
+    @ExceptionHandler(SchoolUpdateException.class)
+    public ResponseEntity<String> handleSchoolUpdateException(SchoolUpdateException ex) {
+        String message = ex.getMessage() +
+                " - Проверьте данные, которые вы пытаетесь обновить.";
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(message);
     }
 
     @ExceptionHandler(BindException.class)
@@ -80,7 +95,91 @@ public class GlobalExceptionHandler {
                 model
         );
     }
+    @ExceptionHandler(SchoolNotFoundException.class)
+    public ResponseEntity<String> handleSchoolNotFoundException(SchoolNotFoundException ex) {
+        String message = ex.getMessage() +
+                " - Проверьте, существует ли школа с указанным идентификатором в базе данных. " +
+                "Убедитесь, что идентификатор был введен правильно.";
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(message);
+    }
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<String> handleDataAccessException(DataAccessException ex) {
+        String message = "Ошибка доступа к данным: " + ex.getMessage() +
+                " - Убедитесь, что база данных доступна и работает корректно. Проверьте конфигурацию подключения.";
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(message);
+    }
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+        String message = "Произошла ошибка: " + ex.getMessage() +
+                " - Проверьте логи для диагностики проблемы и устраните её.";
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(message);
+    }
+    @ExceptionHandler(SchoolServiceException.class)
+    public ResponseEntity<String> handleSchoolServiceException(SchoolServiceException ex) {
+        log.error("Ошибка сервиса школы: {}", ex.getMessage(), ex);
+        String message = ex.getMessage() +
+                " - Проверьте логи для получения дополнительной информации о причине ошибки.";
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(message);
+    }
+    @ExceptionHandler(SubscriberNotFoundException.class)
+    public ResponseEntity<String> handleSubscriberNotFoundException(SubscriberNotFoundException ex) {
+        String message = ex.getMessage() +
+                " - Проверьте, существует ли подписчик с указанным идентификатором в базе данных. " +
+                "Убедитесь, что идентификатор был введен правильно.";
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(message);
+    }
+    @ExceptionHandler(NotificationSendingException.class)
+    public ResponseEntity<String> handleNotificationSendingException(NotificationSendingException ex) {
+        String message = ex.getMessage() +
+                " - Проверьте логи для получения дополнительной информации о причине ошибки." +
+                " Убедитесь, что все параметры уведомления корректны и сервис подписчика доступен.";
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(message);
+    }
+    @ExceptionHandler(RestClientException.class)
+    public ResponseEntity<String> handleRestClientException(RestClientException ex) {
+        String message = "Ошибка при отправке уведомления: " + ex.getMessage() +
+                " - Проверьте доступность URL подписчика и его корректность." +
+                " Убедитесь, что сервис подписчика работает и доступен по сети.";
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(message);
+    }
+    @ExceptionHandler(InterruptedException.class)
+    public ResponseEntity<String> handleInterruptedException(InterruptedException ex) {
+        String message = "Ошибка при ожидании между попытками отправки уведомления: " + ex.getMessage();
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(message);
+    }
+    @ExceptionHandler(NotificationProcessingException.class)
+    public ResponseEntity<String> handleNotificationProcessingException(NotificationProcessingException ex) {
+        String message = ex.getMessage() +
+                " - Проверьте логи для получения дополнительной информации о причине ошибки." +
+                " Убедитесь, что параметры уведомления корректны и сервис подписчика доступен.";
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(message);
+    }
 
+    @ExceptionHandler(EmptyResultDataAccessException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ResponseEntity<String> handleEmptyResult(EmptyResultDataAccessException ex) {
+        String message = "Подписчики не найдены для указанной школы.";
+        log.error("Ошибка: {}", message, ex);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(message);
+    }
     private String createErrorResponse(String userMessage, String technicalMessage, Model model) {
         model.addAttribute("errorMessage", userMessage);
         model.addAttribute("technicalDetails", technicalMessage);

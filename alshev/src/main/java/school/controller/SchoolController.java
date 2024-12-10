@@ -13,7 +13,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import school.dto.SchoolCreateDTO;
 import school.dto.SchoolEntityDTO;
+import school.exception.NotificationSendingException;
 import school.exception.ResourceNotFoundException;
+import school.exception.SchoolServiceException;
 import school.exception.SchoolUpdateException;
 import school.mapper.SchoolMapper;
 import school.repository.SchoolRepository;
@@ -84,7 +86,6 @@ public class SchoolController {
         model.addAttribute("createUrl", CREATE_URL);
         return CREATE_VIEW;
     }
-
     @PostMapping(CREATE_URL)
     public String createSchool(
             @Valid @ModelAttribute("school") SchoolCreateDTO schoolCreateDTO,
@@ -99,14 +100,13 @@ public class SchoolController {
         }
 
         try {
-            SchoolCreateDTO createdSchool = schoolService.create(schoolCreateDTO);
+            SchoolEntityDTO createdSchool = schoolService.create(schoolCreateDTO);
             redirectAttributes.addFlashAttribute("successMessage", SUCCESS_CREATE_MESSAGE);
-            return "redirect:" + BASE_URL;
-        } catch (Exception e) {
-            log.error("Error while creating school", e);
-            redirectAttributes.addFlashAttribute("errorMessage", ERROR_CREATE_MESSAGE);
-            return "redirect:" + BASE_URL + CREATE_URL;
+        } catch (SchoolServiceException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Ошибка при создании школы: " + e.getMessage());
         }
+
+        return "redirect:" + BASE_URL;
     }
 
     @GetMapping(EDIT_URL)
@@ -117,6 +117,7 @@ public class SchoolController {
         model.addAttribute("updateUrl", UPDATE_URL);
         return EDIT_VIEW;
     }
+
 
     @PostMapping(UPDATE_URL)
     public String updateSchool(@PathVariable Long id,
@@ -145,18 +146,17 @@ public class SchoolController {
             return "redirect:" + BASE_URL + EDIT_URL.replace("{id}", id.toString());
         }
     }
-    @GetMapping(DELETE_URL)
-    public String deleteSchool(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-        try {
-            schoolService.delete(id);
-            redirectAttributes.addFlashAttribute("successMessage", SUCCESS_DELETE_MESSAGE);
-        } catch (ResourceNotFoundException e) {
-            log.error("School not found with id: " + id, e);
-            redirectAttributes.addFlashAttribute("errorMessage", ERROR_DELETE_MESSAGE + " - School not found");
-        } catch (Exception e) {
-            log.error("Error while deleting school", e);
-            redirectAttributes.addFlashAttribute("errorMessage", ERROR_DELETE_MESSAGE);
-        }
-        return "redirect:" + BASE_URL;
+@GetMapping(DELETE_URL)
+public String deleteSchool(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+    try {
+        schoolService.delete(id);
+        redirectAttributes.addFlashAttribute("successMessage", SUCCESS_DELETE_MESSAGE);
+    } catch (ResourceNotFoundException e) {
+        redirectAttributes.addFlashAttribute("errorMessage", ERROR_DELETE_MESSAGE + " - School not found");
+    } catch (SchoolServiceException e) {
+        redirectAttributes.addFlashAttribute("errorMessage", ERROR_DELETE_MESSAGE);
     }
+
+    return "redirect:" + BASE_URL;
+}
 }

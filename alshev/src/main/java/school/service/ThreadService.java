@@ -1,12 +1,13 @@
 package school.service;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import school.dto.SchoolEntityDTO;
 import school.dto.SchoolUpdateDto;
 import school.dto.SubscriberDto;
 import school.entity.SubscriberEntity;
+import school.exception.SubscriberNotFoundException;
+import school.exception.ThreadServiceException;
 import school.mapper.SubscriberMapper;
 import school.repository.NotificationStatusRepository;
 import school.repository.SubscriberRepository;
@@ -14,7 +15,6 @@ import school.repository.SubscriberRepository;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 public class ThreadService {
     private SchoolNotificationThread schoolNotificationThread = null;
@@ -29,7 +29,8 @@ public class ThreadService {
             SubscriberRepository subscriberRepository,
             SubscriberMapper subscriberMapper,
             SchoolNotificationSender notificationSender,
-            NotificationStatusRepository notificationStatusRepository, NotificationStatusService notificationStatusService
+            NotificationStatusRepository notificationStatusRepository,
+            NotificationStatusService notificationStatusService
     ) {
         this.subscriberRepository = subscriberRepository;
         this.subscriberMapper = subscriberMapper;
@@ -41,20 +42,29 @@ public class ThreadService {
     private void checkAndStart() {
         if (schoolNotificationThread != null)
             return;
+
         schoolNotificationThread = new SchoolNotificationThread(notificationSender, notificationStatusService);
         schoolNotificationThread.start();
     }
 
     public void addSubscriber(SubscriberDto subscriberDto) {
         checkAndStart();
-        schoolNotificationThread.addSubscriber(subscriberDto);
-        log.info("Added subscriber ID={}, URL={}",
-                subscriberDto.getId(), subscriberDto.getUrl());
+        try {
+            schoolNotificationThread.addSubscriber(subscriberDto);
+        } catch (RuntimeException e) {
+            throw new ThreadServiceException("Error adding subscriber", e);
+        }
     }
 
     public void removeSubscriber(Long subscriberId) {
         checkAndStart();
-        schoolNotificationThread.removeSubscriber(subscriberId);
+        try {
+            schoolNotificationThread.removeSubscriber(subscriberId);
+        } catch (SubscriberNotFoundException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new ThreadServiceException("Error removing subscriber", e);
+        }
     }
 
     public List<SubscriberDto> getSubscribers() {

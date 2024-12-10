@@ -1,28 +1,25 @@
 package school.service;
 
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import school.dto.SchoolEntityDTO;
 import school.dto.SchoolUpdateDto;
 import school.dto.SubscriberDto;
-import school.entity.NotificationStatus;
-import school.repository.NotificationStatusRepository;
+import school.exception.NotificationProcessingException;
+import school.exception.SubscriberNotFoundException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
-@Slf4j
 @Component
 public class SchoolNotificationThread extends Thread {
     private HashMap<String, ArrayList<SubscriberDto>> mapSubscribers;
     private ArrayList<SchoolEntityDTO> createdSchools = new ArrayList<>();
     private ArrayList<SchoolUpdateDto> updatedSchools = new ArrayList<>();
     private final ArrayList<SchoolEntityDTO> deletedSchools = new ArrayList<>();
+
     @Setter
     private final SchoolNotificationSender notificationSender;
     private final NotificationStatusService notificationStatusService;
@@ -31,7 +28,8 @@ public class SchoolNotificationThread extends Thread {
 
     @Autowired
     public SchoolNotificationThread(
-            SchoolNotificationSender notificationSender, NotificationStatusService notificationStatusService
+            SchoolNotificationSender notificationSender,
+            NotificationStatusService notificationStatusService
     ) {
         this.notificationSender = notificationSender;
         this.notificationStatusService = notificationStatusService;
@@ -41,22 +39,28 @@ public class SchoolNotificationThread extends Thread {
         this.mapSubscribers.put(SubscriberDto.EVENT_ON_UPDATE, new ArrayList<>());
         this.mapSubscribers.put(SubscriberDto.EVENT_ON_DELETE, new ArrayList<>());
     }
+
     public void addSubscriber(SubscriberDto subscriberDto) {
         mapSubscribers.get(subscriberDto.getEventType()).add(subscriberDto);
-        log.info("Added subscriber: " + subscriberDto);
     }
+
     public void removeSubscriber(Long subscriberId) {
+        boolean found = false;
         for (String eventType : mapSubscribers.keySet()) {
             ArrayList<SubscriberDto> subscribers = mapSubscribers.get(eventType);
             for (int i = 0; i < subscribers.size(); i++) {
                 if (subscribers.get(i).getId().equals(subscriberId)) {
                     subscribers.remove(i);
-                    log.info("Removed subscriber with ID: " + subscriberId + " for event type: " + eventType);
+                    found = true;
                     break;
                 }
             }
         }
+        if (!found) {
+            throw new SubscriberNotFoundException("Subscriber with ID " + subscriberId + " not found.");
+        }
     }
+
     public List<SubscriberDto> getSubscribers() {
         ArrayList<SubscriberDto> allSubscribers = new ArrayList<>();
         for (ArrayList<SubscriberDto> subscribers : mapSubscribers.values()) {
@@ -66,20 +70,20 @@ public class SchoolNotificationThread extends Thread {
     }
 
     public void addSchoolCreated(SchoolEntityDTO schoolEntityDTO) {
-        log.info("Adding created school to thread: " + schoolEntityDTO);
         createdSchools.add(schoolEntityDTO);
     }
-    public void addSchoolUpdated (SchoolUpdateDto schoolUpdateDto){
 
+    public void addSchoolUpdated(SchoolUpdateDto schoolUpdateDto) {
         updatedSchools.add(schoolUpdateDto);
     }
-    public void addSchoolDeleted (SchoolEntityDTO schoolEntityDTO){
 
+    public void addSchoolDeleted(SchoolEntityDTO schoolEntityDTO) {
         deletedSchools.add(schoolEntityDTO);
     }
+
     @Override
     public void run() {
-        while (true){
+        while (true) {
             boolean sent = false;
             sent = sent || checkAndSendCreate();
             sent = sent || checkAndSendUpdate();
@@ -87,28 +91,30 @@ public class SchoolNotificationThread extends Thread {
             if (!sent) {
                 try {
                     Thread.sleep(100);
-                } catch (InterruptedException e){}
+                } catch (InterruptedException e) {}
             }
         }
     }
-    private boolean checkAndSendCreate() {
-        if (createdSchools.isEmpty())
-            return false;
 
-        SchoolEntityDTO first = createdSchools.remove(0);
-        ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_CREATE);
+private boolean checkAndSendCreate() {
+    if (createdSchools.isEmpty())
+        return false;
 
-        if (subscribers.isEmpty()) {
-            log.info("Created school " + first.toString() + " but no subscribers. Current subscribers: " + getSubscribers());
-            return true;
-        }
+    SchoolEntityDTO first = createdSchools.remove(0);
+    ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_CREATE);
 
-        for (SubscriberDto subscriber : subscribers) {
-            NotificationTask task = new NotificationTask(first, subscriber);
-            processNotification(task);
-        }
+    if (subscribers.isEmpty()) {
         return true;
     }
+
+    for (SubscriberDto subscriber : subscribers) {
+        NotificationTask task = new NotificationTask(first, subscriber);
+        processNotification(task);
+    }
+    return true;
+}
+
+
     private boolean checkAndSendUpdate() {
         if (updatedSchools.isEmpty())
             return false;
@@ -118,7 +124,6 @@ public class SchoolNotificationThread extends Thread {
         ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_UPDATE);
 
         if (subscribers.isEmpty()) {
-            log.info("The message " + first.toString() + " but no subscribers");
             return true;
         }
 
@@ -129,40 +134,45 @@ public class SchoolNotificationThread extends Thread {
         return true;
     }
 
-private boolean checkAndSendDelete() {
-    if (deletedSchools.isEmpty())
-        return false;
+    private boolean checkAndSendDelete() {
+        if (deletedSchools.isEmpty())
+            return false;
 
-    SchoolEntityDTO first = deletedSchools.remove(0);
-    ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_DELETE);
+        SchoolEntityDTO first = deletedSchools.remove(0);
+        ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_DELETE);
 
-    if (subscribers.isEmpty()) {
-        log.info("Deleted school " + first.toString() + " but no subscribers");
+        if (subscribers.isEmpty()) {
+            return true;
+        }
+
+        for (SubscriberDto subscriber : subscribers) {
+            NotificationTask task = new NotificationTask(first, subscriber, true);
+            processNotification(task);
+        }
         return true;
     }
 
-    for (SubscriberDto subscriber : subscribers) {
-        NotificationTask task = new NotificationTask(first, subscriber, true);
-        processNotification(task);
-    }
-    return true;
-}
-    public void sendNotification(NotificationTask task) throws Exception {
-        switch (task.getType()) {
-            case CREATE:
-                notificationSender.sendCreate(task.getSchoolEntityDTO(), task.getSubscriberDto());
-                break;
-            case UPDATE:
-                notificationSender.sendUpdate(task.getSchoolUpdateDto(), task.getSubscriberDto());
-                break;
-            case DELETE:
-                notificationSender.sendDelete(task.getSchoolEntityDTO(), task.getSubscriberDto());
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported notification type: " + task.getType());
+    public void sendNotification(NotificationTask task) throws NotificationProcessingException {
+        try {
+            switch (task.getType()) {
+                case CREATE:
+                    notificationSender.sendCreate(task.getSchoolEntityDTO(), task.getSubscriberDto());
+                    break;
+                case UPDATE:
+                    notificationSender.sendUpdate(task.getSchoolUpdateDto(), task.getSubscriberDto());
+                    break;
+                case DELETE:
+                    notificationSender.sendDelete(task.getSchoolEntityDTO(), task.getSubscriberDto());
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported notification type: " + task.getType());
+            }
+        } catch (NotificationProcessingException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new NotificationProcessingException("Error processing notification: " + task, e);
         }
     }
-
 
     private void processNotification(NotificationTask task) {
         int attempt = 0;
@@ -172,22 +182,16 @@ private boolean checkAndSendDelete() {
             try {
                 sendNotification(task);
                 delivered = true;
-                log.info("Уведомление успешно доставлено: {}", task);
 
                 notificationStatusService.saveNotificationStatus(task, "доставлено", attempt + 1);
-            } catch (Exception e) {
+            } catch (NotificationProcessingException e) {
                 attempt++;
-                log.error("Ошибка при отправке уведомления: {}. Попытка {}/{}", task, attempt, maxRetries);
 
                 if (attempt < maxRetries) {
                     try {
                         Thread.sleep(retryInterval);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
+                    } catch (InterruptedException ie) {}
                 } else {
-                    log.error("Не удалось доставить уведомление после {} попыток: {}", maxRetries, task);
                     notificationStatusService.saveNotificationStatus(task, "не доставлено", attempt);
                 }
             }

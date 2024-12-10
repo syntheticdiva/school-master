@@ -8,37 +8,24 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import school.dto.*;
 import school.enums.NotificationType;
+import school.exception.NotificationProcessingException;
+import school.exception.NotificationSendingException;
 
 import java.time.LocalDateTime;
 
 @Slf4j
 @Service
 public class SchoolNotificationSender {
-    private final RestTemplate restTemplate;
     private final NotificationStatusService notificationStatusService;
+    private final RestTemplate restTemplate;
 
     @Autowired
-    public SchoolNotificationSender(
-            RestTemplate restTemplate,
-            NotificationStatusService notificationStatusService
-    ) {
-        this.restTemplate = restTemplate;
+    public SchoolNotificationSender(NotificationStatusService notificationStatusService, RestTemplate restTemplate) {
         this.notificationStatusService = notificationStatusService;
+        this.restTemplate = restTemplate;
     }
 
     public void sendCreate(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
-        sendCreateWithRetry(schoolEntityDTO, subscriberDto);
-    }
-
-    public void sendUpdate(SchoolUpdateDto schoolUpdateDto, SubscriberDto subscriberDto) {
-        sendUpdateWithRetry(schoolUpdateDto, subscriberDto);
-    }
-
-    public void sendDelete(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
-        sendDeleteWithRetry(schoolEntityDTO, subscriberDto);
-    }
-
-    public void sendCreateWithRetry(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
         int maxRetries = 3;
         long retryInterval = 5000;
 
@@ -82,12 +69,13 @@ public class SchoolNotificationSender {
 
                 try {
                     Thread.sleep(retryInterval);
-                } catch (InterruptedException ie) {}
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();{}
+                }
             }
         }
     }
-
-    public void sendUpdateWithRetry(SchoolUpdateDto schoolUpdateDto, SubscriberDto subscriberDto) {
+    public void sendUpdate(SchoolUpdateDto schoolUpdateDto, SubscriberDto subscriberDto) {
         int maxRetries = 3;
         long retryInterval = 5000;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
@@ -128,7 +116,7 @@ public class SchoolNotificationSender {
         }
     }
 
-    public void sendDeleteWithRetry(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
+    public void sendDelete(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
         int maxRetries = 3;
         long retryInterval = 5000;
 
