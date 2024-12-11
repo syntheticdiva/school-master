@@ -9,6 +9,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import school.dto.SchoolCreateDTO;
 import school.dto.SchoolEntityDTO;
 import school.dto.SchoolUpdateDto;
@@ -84,13 +85,20 @@ public class SchoolService {
         schoolMapper.updateEntityFromDto(schoolEntityDTO, fromDb.get());
         SchoolEntity updatedSchool = schoolRepository.save(fromDb.get());
         SchoolUpdateDto schoolUpdateDto = new SchoolUpdateDto(old, schoolEntityDTO);
-
         List<SubscriberDto> subscribers = getSubscribersForSchool(updatedSchool);
+
         for (SubscriberDto subscriber : subscribers) {
             if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_UPDATE)) {
-                schoolNotificationSender.sendUpdate(schoolUpdateDto, subscriber);
+                try {
+                    schoolNotificationSender.sendUpdate(schoolUpdateDto, subscriber);
+                } catch (NotificationSendingException e) {
+                    log.error("Failed to send update notification to subscriber ID {}: {}", subscriber.getId(), e.getMessage());
+                } catch (RestClientException e) {
+                    log.error("Connection issue while sending update notification to subscriber ID {}: {}", subscriber.getId(), e.getMessage());
+                }
             }
         }
+
         return schoolMapper.toDto(updatedSchool);
     }
 
