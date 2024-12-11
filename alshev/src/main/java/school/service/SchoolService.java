@@ -48,35 +48,54 @@ public class SchoolService {
         this.subscriberRepository = subscriberRepository;
         this.subscriberMapper = subscriberMapper;
     }
+//    @Transactional
+//    public SchoolEntityDTO create(SchoolCreateDTO schoolCreateDTO) {
+//        try {
+//            SchoolEntity newSchool = schoolMapper.toEntity(schoolCreateDTO);
+//            SchoolEntity savedSchool = schoolRepository.save(newSchool);
+//            SchoolEntityDTO createdDto = schoolMapper.toDto(savedSchool);
+//
+//            List<SubscriberDto> subscribers = getSubscribersForSchool(savedSchool);
+//            for (SubscriberDto subscriber : subscribers) {
+//                if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_CREATE)) {
+//                    try {
+//                        schoolNotificationSender.sendCreate(createdDto, subscriber);
+//                    } catch (NotificationSendingException e) {
+//                        log.error("Failed to send creation notification to subscriber ID " + subscriber.getId(), e);
+//                    }
+//                }
+//            }
+//
+//            return createdDto;
+//        } catch (DataAccessException e) {
+//            throw new SchoolServiceException("Error creating the school due to data access issue", e);
+//        } catch (RuntimeException e) {
+//            throw new SchoolServiceException("Error creating the school", e);
+//        }
+//    }
     @Transactional
     public SchoolEntityDTO create(SchoolCreateDTO schoolCreateDTO) {
-        try {
-            SchoolEntity newSchool = schoolMapper.toEntity(schoolCreateDTO);
-            SchoolEntity savedSchool = schoolRepository.save(newSchool);
-            SchoolEntityDTO createdDto = schoolMapper.toDto(savedSchool);
+        SchoolEntity newSchool = schoolMapper.toEntity(schoolCreateDTO);
+        SchoolEntity savedSchool = schoolRepository.save(newSchool);
+        SchoolEntityDTO createdDto = schoolMapper.toDto(savedSchool);
 
-            List<SubscriberDto> subscribers = getSubscribersForSchool(savedSchool);
-            for (SubscriberDto subscriber : subscribers) {
-                if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_CREATE)) {
-                    try {
-                        schoolNotificationSender.sendCreate(createdDto, subscriber);
-                    } catch (NotificationSendingException e) {
-                        log.error("Failed to send creation notification to subscriber ID " + subscriber.getId(), e);
-                    }
+        List<SubscriberDto> subscribers = getSubscribersForSchool(savedSchool);
+        for (SubscriberDto subscriber : subscribers) {
+            if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_CREATE)) {
+                try {
+                    schoolNotificationSender.sendCreate(createdDto, subscriber);
+                } catch (NotificationSendingException e) {
+                    log.error("Failed to send creation notification to subscriber ID " + subscriber.getId(), e);
                 }
             }
-
-            return createdDto;
-        } catch (DataAccessException e) {
-            throw new SchoolServiceException("Error creating the school due to data access issue", e);
-        } catch (RuntimeException e) {
-            throw new SchoolServiceException("Error creating the school", e);
         }
+
+        return createdDto;
     }
     public SchoolEntityDTO update(Long id, SchoolEntityDTO schoolEntityDTO) {
         Optional<SchoolEntity> fromDb = schoolRepository.findById(id);
         if (!fromDb.isPresent()) {
-            throw new ResourceNotFoundException("School not found with id: " + id);
+            throw new ResourceNotFoundException(String.valueOf(id));
         }
         SchoolEntityDTO old = schoolMapper.toDto(fromDb.get());
         schoolMapper.updateEntityFromDto(schoolEntityDTO, fromDb.get());
@@ -98,30 +117,35 @@ public class SchoolService {
 
         return schoolMapper.toDto(updatedSchool);
     }
-
     public void delete(Long id) {
-    try {
-        SchoolEntity existingSchool = schoolRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("School not found with id: " + id));
+        Optional<SchoolEntity> fromDb = schoolRepository.findById(id);
+        if (!fromDb.isPresent()) {
+            throw new ResourceNotFoundException(String.valueOf(id));
+        }
 
+        SchoolEntity existingSchool = fromDb.get();
+        SchoolEntityDTO schoolDto = schoolMapper.toDto(existingSchool);
         List<SubscriberDto> subscribers = getSubscribersForSchool(existingSchool);
 
         for (SubscriberDto subscriber : subscribers) {
             if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_DELETE)) {
                 try {
-                    SchoolEntityDTO schoolDto = schoolMapper.toDto(existingSchool);
                     schoolNotificationSender.sendDelete(schoolDto, subscriber);
-                } catch (NotificationProcessingException e) {
-                    log.error("Failed to send delete notification to subscriber ID " + subscriber.getId(), e);
+                } catch (NotificationSendingException e) {
+                    log.error("Failed to send delete notification to subscriber ID {}: {}", subscriber.getId(), e.getMessage());
+                } catch (RestClientException e) {
+                    log.error("Connection issue while sending delete notification to subscriber ID {}: {}", subscriber.getId(), e.getMessage());
                 }
             }
         }
 
-        schoolRepository.delete(existingSchool);
-    } catch (DataAccessException e) {
-        throw new SchoolServiceException("Error deleting the school due to data access issue", e);
+        try {
+            schoolRepository.delete(existingSchool);
+        } catch (DataAccessException e) {
+            throw new SchoolServiceException("Error deleting the school", e);
+        }
     }
-}
+
     public List<SubscriberDto> getSubscribersForSchool(SchoolEntity schoolEntity) {
         List<SubscriberEntity> subscribers = subscriberRepository.findByEntity(
                 SubscriberDto.ENTITY_SCHOOL
@@ -140,9 +164,17 @@ public class SchoolService {
         Page<SchoolEntity> schoolPage = schoolRepository.findAll(pageable);
         return schoolPage.map(schoolMapper::toDto);
     }
+
     public List<SchoolEntityDTO> getAllSchools() {
         List<SchoolEntity> schools = schoolRepository.findAll();
-        return schools.stream().map(schoolMapper::toDto).collect(Collectors.toList());
+
+        if (schools.isEmpty()) {
+            throw new NoContentException("No schools found");
+        }
+
+        return schools.stream()
+                .map(schoolMapper::toDto)
+                .collect(Collectors.toList());
     }
     public SchoolEntityDTO findById(Long id) {
         if (id == null || id <= 0) {
@@ -151,7 +183,7 @@ public class SchoolService {
 
         return schoolRepository.findById(id)
                 .map(schoolMapper::toDto)
-                .orElseThrow(() -> new SchoolNotFoundException("The school was not found with an ID: " + id));
+                .orElseThrow(() -> new SchoolNotFoundException(String.valueOf(id)));
     }
 
 }

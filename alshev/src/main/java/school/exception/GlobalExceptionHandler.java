@@ -27,13 +27,18 @@ import lombok.extern.slf4j.Slf4j;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<String> handleResourceNotFoundException(ResourceNotFoundException ex) {
-        String message = ex.getMessage() +
-                " - Проверьте, существует ли запрашиваемый ресурс.";
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                "School not found with id: " + ex.getMessage(),
+                "Проверьте, существует ли запрашиваемый ресурс."
+        );
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(message);
+                .body(error);
     }
+
+
     @ExceptionHandler(SchoolUpdateException.class)
     public ResponseEntity<String> handleSchoolUpdateException(SchoolUpdateException ex) {
         String message = ex.getMessage() +
@@ -95,19 +100,40 @@ public class GlobalExceptionHandler {
                 model
         );
     }
-    @ExceptionHandler(SchoolNotFoundException.class)
-    public ResponseEntity<String> handleSchoolNotFoundException(SchoolNotFoundException ex) {
-        String message = ex.getMessage() +
-                " - Проверьте, существует ли школа с указанным идентификатором в базе данных. " +
-                "Убедитесь, что идентификатор был введен правильно.";
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(message);
-    }
+
+@ExceptionHandler(SchoolNotFoundException.class)
+public ResponseEntity<ErrorResponse> handleSchoolNotFoundException(SchoolNotFoundException ex) {
+    ErrorResponse error = new ErrorResponse(
+            HttpStatus.NOT_FOUND.value(),
+            "School not found with id: " + ex.getMessage(),
+            "Проверьте, существует ли школа с указанным идентификатором."
+    );
+    return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(error);
+}
     @ExceptionHandler(InvalidSchoolIdException.class)
-    public ResponseEntity<String> handleInvalidSchoolIdException(InvalidSchoolIdException ex) {
-        String message = ex.getMessage() + " - Проверьте корректность введенного идентификатора.";
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
+    public ResponseEntity<ErrorResponse> handleInvalidSchoolIdException(InvalidSchoolIdException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                "Убедитесь, что идентификатор является положительным числом."
+        );
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(error);
+    }
+    @ExceptionHandler(NoContentException.class)
+    public ResponseEntity<ErrorResponse> handleNoContentException(NoContentException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.NO_CONTENT.value(),
+                ex.getMessage(),
+                "В базе данных отсутствуют записи о школах"
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NO_CONTENT)
+                .body(error);
     }
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<String> handleDataAccessException(DataAccessException ex) {
@@ -125,14 +151,28 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(message);
     }
+//    @ExceptionHandler(SchoolServiceException.class)
+//    public ResponseEntity<String> handleSchoolServiceException(SchoolServiceException ex) {
+//        log.error("Ошибка сервиса школы: {}", ex.getMessage(), ex);
+//        String message = ex.getMessage() +
+//                " - Проверьте логи для получения дополнительной информации о причине ошибки.";
+//        return ResponseEntity
+//                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                .body(message);
+//    }
     @ExceptionHandler(SchoolServiceException.class)
-    public ResponseEntity<String> handleSchoolServiceException(SchoolServiceException ex) {
+    public ResponseEntity<ErrorResponse> handleSchoolServiceException(SchoolServiceException ex) {
         log.error("Ошибка сервиса школы: {}", ex.getMessage(), ex);
-        String message = ex.getMessage() +
-                " - Проверьте логи для получения дополнительной информации о причине ошибки.";
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "School creation error",
+                "Не удалось создать школу. " + ex.getMessage()
+        );
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(message);
+                .body(error);
     }
     @ExceptionHandler(SubscriberNotFoundException.class)
     public ResponseEntity<String> handleSubscriberNotFoundException(SubscriberNotFoundException ex) {
@@ -143,14 +183,20 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.NOT_FOUND)
                 .body(message);
     }
+
     @ExceptionHandler(NotificationSendingException.class)
-    public ResponseEntity<String> handleNotificationSendingException(NotificationSendingException ex) {
-        String message = ex.getMessage() +
-                " - Проверьте логи для получения дополнительной информации о причине ошибки." +
-                " Убедитесь, что все параметры уведомления корректны и сервис подписчика доступен.";
+    public ResponseEntity<ErrorResponse> handleNotificationSendingException(NotificationSendingException ex) {
+        log.error("Ошибка отправки уведомления: {}", ex.getMessage(), ex);
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Notification sending error",
+                "Не удалось отправить уведомление. " + ex.getMessage()
+        );
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(message);
+                .body(error);
     }
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<String> handleRestClientException(RestClientException ex) {

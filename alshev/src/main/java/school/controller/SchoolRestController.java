@@ -9,9 +9,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import school.dto.SchoolCreateDTO;
 import school.dto.SchoolEntityDTO;
-import school.exception.InvalidSchoolIdException;
-import school.exception.SchoolNotFoundException;
+import school.exception.ResourceNotFoundException;
+import school.exception.SchoolServiceException;
 import school.service.SchoolService;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(SchoolRestController.BASE_URL)
@@ -24,6 +26,16 @@ public class SchoolRestController {
         this.schoolService = schoolService;
     }
 
+//    @PostMapping
+//    @Operation(summary = "Create a school")
+//    public ResponseEntity<SchoolEntityDTO> createSchool(@Valid @RequestBody SchoolCreateDTO schoolCreateDTO) {
+//        try {
+//            SchoolEntityDTO createdSchool = schoolService.create(schoolCreateDTO);
+//            return ResponseEntity.status(HttpStatus.CREATED).body(createdSchool);
+//        } catch (SchoolServiceException ex) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+//        }
+//    }
     @PostMapping
     @Operation(summary = "Create a school")
     public ResponseEntity<SchoolEntityDTO> createSchool(@Valid @RequestBody SchoolCreateDTO schoolCreateDTO) {
@@ -37,17 +49,23 @@ public class SchoolRestController {
         SchoolEntityDTO updatedSchool = schoolService.update(id, schoolEntityDTO);
         return ResponseEntity.ok(updatedSchool);
     }
-
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete school")
-    public ResponseEntity<Void> deleteSchool(@PathVariable Long id) {
+    public ResponseEntity<?> deleteSchool(@PathVariable Long id) {
         schoolService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
     @GetMapping("/{id}")
     @Operation(summary = "Search for a school by Id")
     public ResponseEntity<SchoolEntityDTO> findById(@PathVariable Long id) {
         SchoolEntityDTO school = schoolService.findById(id);
         return ResponseEntity.ok(school);
+    }
+    @GetMapping
+    @Operation(summary = "Find all schools")
+    public ResponseEntity<List<SchoolEntityDTO>> getAllSchools() {
+        List<SchoolEntityDTO> schools = schoolService.getAllSchools();
+        return ResponseEntity.ok(schools);
     }
 }

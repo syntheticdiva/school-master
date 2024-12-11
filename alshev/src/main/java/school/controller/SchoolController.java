@@ -125,7 +125,6 @@ public class SchoolController {
                                BindingResult result,
                                RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
-            log.info("result has error");
             return EDIT_VIEW;
         }
 
@@ -133,8 +132,6 @@ public class SchoolController {
             schoolService.update(id, schoolDTO);
 
             redirectAttributes.addFlashAttribute("successMessage", SUCCESS_UPDATE_MESSAGE);
-            log.info("School updated successfully");
-
             return "redirect:" + BASE_URL;
         } catch (ResourceNotFoundException e) {
             log.error("School not found with id: " + id, e);
