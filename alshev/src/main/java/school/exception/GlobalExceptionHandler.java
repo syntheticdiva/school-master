@@ -151,15 +151,6 @@ public ResponseEntity<ErrorResponse> handleSchoolNotFoundException(SchoolNotFoun
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(message);
     }
-//    @ExceptionHandler(SchoolServiceException.class)
-//    public ResponseEntity<String> handleSchoolServiceException(SchoolServiceException ex) {
-//        log.error("Ошибка сервиса школы: {}", ex.getMessage(), ex);
-//        String message = ex.getMessage() +
-//                " - Проверьте логи для получения дополнительной информации о причине ошибки.";
-//        return ResponseEntity
-//                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                .body(message);
-//    }
     @ExceptionHandler(SchoolServiceException.class)
     public ResponseEntity<ErrorResponse> handleSchoolServiceException(SchoolServiceException ex) {
         log.error("Ошибка сервиса школы: {}", ex.getMessage(), ex);

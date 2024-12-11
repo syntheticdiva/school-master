@@ -48,31 +48,7 @@ public class SchoolService {
         this.subscriberRepository = subscriberRepository;
         this.subscriberMapper = subscriberMapper;
     }
-//    @Transactional
-//    public SchoolEntityDTO create(SchoolCreateDTO schoolCreateDTO) {
-//        try {
-//            SchoolEntity newSchool = schoolMapper.toEntity(schoolCreateDTO);
-//            SchoolEntity savedSchool = schoolRepository.save(newSchool);
-//            SchoolEntityDTO createdDto = schoolMapper.toDto(savedSchool);
-//
-//            List<SubscriberDto> subscribers = getSubscribersForSchool(savedSchool);
-//            for (SubscriberDto subscriber : subscribers) {
-//                if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_CREATE)) {
-//                    try {
-//                        schoolNotificationSender.sendCreate(createdDto, subscriber);
-//                    } catch (NotificationSendingException e) {
-//                        log.error("Failed to send creation notification to subscriber ID " + subscriber.getId(), e);
-//                    }
-//                }
-//            }
-//
-//            return createdDto;
-//        } catch (DataAccessException e) {
-//            throw new SchoolServiceException("Error creating the school due to data access issue", e);
-//        } catch (RuntimeException e) {
-//            throw new SchoolServiceException("Error creating the school", e);
-//        }
-//    }
+
     @Transactional
     public SchoolEntityDTO create(SchoolCreateDTO schoolCreateDTO) {
         SchoolEntity newSchool = schoolMapper.toEntity(schoolCreateDTO);

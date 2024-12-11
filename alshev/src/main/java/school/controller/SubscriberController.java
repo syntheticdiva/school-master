@@ -27,6 +27,7 @@ public class SubscriberController {
     }
 
     @PostMapping
+    @Operation(summary = "Add subscriber")
     public ResponseEntity<SubscriberEntity> addSubscriber(@Valid @RequestBody SubscriberDto subscriberDto) {
         SubscriberEntity savedEntity = subscriberService.createSubscriber(subscriberDto);
         threadService.addSubscriber(subscriberDto);

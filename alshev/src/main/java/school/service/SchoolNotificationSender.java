@@ -2,14 +2,12 @@ package school.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import school.dto.*;
 import school.enums.NotificationType;
-import school.exception.NotificationProcessingException;
-import school.exception.NotificationSendingException;
 
 import java.time.LocalDateTime;
 
@@ -19,6 +17,9 @@ public class SchoolNotificationSender {
     private final NotificationStatusService notificationStatusService;
     private final RestTemplate restTemplate;
 
+    private static final int MAX_RETRIES = 3;
+    private static final long RETRY_INTERVAL = 5000;
+
     @Autowired
     public SchoolNotificationSender(NotificationStatusService notificationStatusService, RestTemplate restTemplate) {
         this.notificationStatusService = notificationStatusService;
@@ -26,10 +27,7 @@ public class SchoolNotificationSender {
     }
 
     public void sendCreate(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
-        int maxRetries = 3;
-        long retryInterval = 5000;
-
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
                 SchoolOnCreateDto createDto = new SchoolOnCreateDto(
                         schoolEntityDTO.getId(),
@@ -55,9 +53,9 @@ public class SchoolNotificationSender {
                 );
                 return;
             } catch (RestClientException e) {
-                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, maxRetries, e);
+                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, MAX_RETRIES, e);
 
-                if (attempt == maxRetries) {
+                if (attempt == MAX_RETRIES) {
                     notificationStatusService.saveNotificationStatus(
                             subscriberDto,
                             NotificationType.CREATE,
@@ -67,18 +65,13 @@ public class SchoolNotificationSender {
                     break;
                 }
 
-                try {
-                    Thread.sleep(retryInterval);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();{}
-                }
+                sleep();
             }
         }
     }
+
     public void sendUpdate(SchoolUpdateDto schoolUpdateDto, SubscriberDto subscriberDto) {
-        int maxRetries = 3;
-        long retryInterval = 5000;
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
                 ResponseEntity<String> response = restTemplate.postForEntity(
                         subscriberDto.getUrl(),
@@ -97,9 +90,9 @@ public class SchoolNotificationSender {
                 );
                 return;
             } catch (RestClientException e) {
-                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, maxRetries, e);
+                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, MAX_RETRIES, e);
 
-                if (attempt == maxRetries) {
+                if (attempt == MAX_RETRIES) {
                     notificationStatusService.saveNotificationStatus(
                             subscriberDto,
                             NotificationType.UPDATE,
@@ -109,18 +102,13 @@ public class SchoolNotificationSender {
                     break;
                 }
 
-                try {
-                    Thread.sleep(retryInterval);
-                } catch (InterruptedException ie) {}
+                sleep();
             }
         }
     }
 
     public void sendDelete(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
-        int maxRetries = 3;
-        long retryInterval = 5000;
-
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
                 SchoolOnDeleteDto deleteDto = new SchoolOnDeleteDto(
                         schoolEntityDTO.getId(),
@@ -145,9 +133,9 @@ public class SchoolNotificationSender {
                 );
                 return;
             } catch (RestClientException e) {
-                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, maxRetries, e);
+                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, MAX_RETRIES, e);
 
-                if (attempt == maxRetries) {
+                if (attempt == MAX_RETRIES) {
                     notificationStatusService.saveNotificationStatus(
                             subscriberDto,
                             NotificationType.DELETE,
@@ -157,10 +145,15 @@ public class SchoolNotificationSender {
                     break;
                 }
 
-                try {
-                    Thread.sleep(retryInterval);
-                } catch (InterruptedException ie) {}
+                sleep();
             }
         }
     }
+
+    private void sleep() {
+        try {
+            Thread.sleep(RETRY_INTERVAL);
+        } catch (InterruptedException ie) {}
+    }
 }
+

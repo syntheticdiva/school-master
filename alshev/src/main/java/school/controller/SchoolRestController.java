@@ -25,17 +25,6 @@ public class SchoolRestController {
     public SchoolRestController(SchoolService schoolService) {
         this.schoolService = schoolService;
     }
-
-//    @PostMapping
-//    @Operation(summary = "Create a school")
-//    public ResponseEntity<SchoolEntityDTO> createSchool(@Valid @RequestBody SchoolCreateDTO schoolCreateDTO) {
-//        try {
-//            SchoolEntityDTO createdSchool = schoolService.create(schoolCreateDTO);
-//            return ResponseEntity.status(HttpStatus.CREATED).body(createdSchool);
-//        } catch (SchoolServiceException ex) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-//        }
-//    }
     @PostMapping
     @Operation(summary = "Create a school")
     public ResponseEntity<SchoolEntityDTO> createSchool(@Valid @RequestBody SchoolCreateDTO schoolCreateDTO) {
