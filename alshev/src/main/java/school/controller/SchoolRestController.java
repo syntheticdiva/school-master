@@ -3,11 +3,14 @@ package school.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import school.dto.SchoolCreateDTO;
 import school.dto.SchoolEntityDTO;
+import school.exception.InvalidSchoolIdException;
+import school.exception.SchoolNotFoundException;
 import school.service.SchoolService;
 
 @RestController
@@ -40,5 +43,11 @@ public class SchoolRestController {
     public ResponseEntity<Void> deleteSchool(@PathVariable Long id) {
         schoolService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+    @GetMapping("/{id}")
+    @Operation(summary = "Search for a school by Id")
+    public ResponseEntity<SchoolEntityDTO> findById(@PathVariable Long id) {
+        SchoolEntityDTO school = schoolService.findById(id);
+        return ResponseEntity.ok(school);
     }
 }

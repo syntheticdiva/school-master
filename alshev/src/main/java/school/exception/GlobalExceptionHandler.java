@@ -104,6 +104,11 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.NOT_FOUND)
                 .body(message);
     }
+    @ExceptionHandler(InvalidSchoolIdException.class)
+    public ResponseEntity<String> handleInvalidSchoolIdException(InvalidSchoolIdException ex) {
+        String message = ex.getMessage() + " - Проверьте корректность введенного идентификатора.";
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
+    }
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<String> handleDataAccessException(DataAccessException ex) {
         String message = "Ошибка доступа к данным: " + ex.getMessage() +

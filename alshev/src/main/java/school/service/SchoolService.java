@@ -16,10 +16,7 @@ import school.dto.SchoolUpdateDto;
 import school.dto.SubscriberDto;
 import school.entity.SchoolEntity;
 import school.entity.SubscriberEntity;
-import school.exception.NotificationProcessingException;
-import school.exception.NotificationSendingException;
-import school.exception.ResourceNotFoundException;
-import school.exception.SchoolServiceException;
+import school.exception.*;
 import school.mapper.SchoolMapper;
 import school.mapper.SubscriberMapper;
 import school.repository.SchoolRepository;
@@ -148,8 +145,13 @@ public class SchoolService {
         return schools.stream().map(schoolMapper::toDto).collect(Collectors.toList());
     }
     public SchoolEntityDTO findById(Long id) {
+        if (id == null || id <= 0) {
+            throw new InvalidSchoolIdException("The school ID must be a positive number.");
+        }
+
         return schoolRepository.findById(id)
                 .map(schoolMapper::toDto)
-                .orElseThrow(() -> new ResourceNotFoundException("School not found with id: " + id));
+                .orElseThrow(() -> new SchoolNotFoundException("The school was not found with an ID: " + id));
     }
+
 }
