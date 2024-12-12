@@ -174,6 +174,20 @@ public ResponseEntity<ErrorResponse> handleSchoolNotFoundException(SchoolNotFoun
                 .status(HttpStatus.NOT_FOUND)
                 .body(message);
     }
+    @ExceptionHandler(SubscriberServiceException.class)
+    public ResponseEntity<ErrorResponse> handleSubscriberServiceException(SubscriberServiceException ex) {
+        log.error("Ошибка сервиса подписчика: {}", ex.getMessage(), ex);
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Subscriber creation error",
+                "Не удалось создать подписчика. " + ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(error);
+    }
 
     @ExceptionHandler(NotificationSendingException.class)
     public ResponseEntity<ErrorResponse> handleNotificationSendingException(NotificationSendingException ex) {

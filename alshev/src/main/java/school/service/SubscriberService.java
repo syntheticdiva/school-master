@@ -90,6 +90,7 @@ public class SubscriberService {
         }
     }
 
+
     public List<SubscriberDto> getAllSubscribers() {
         List<SubscriberEntity> subscribers = subscriberRepository.findAll();
         return subscribers.stream()

@@ -3,6 +3,7 @@ package school.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -25,7 +26,7 @@ public class SchoolNotificationSender {
         this.notificationStatusService = notificationStatusService;
         this.restTemplate = restTemplate;
     }
-
+    @Async
     public void sendCreate(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -69,7 +70,7 @@ public class SchoolNotificationSender {
             }
         }
     }
-
+    @Async
     public void sendUpdate(SchoolUpdateDto schoolUpdateDto, SubscriberDto subscriberDto) {
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -106,7 +107,7 @@ public class SchoolNotificationSender {
             }
         }
     }
-
+    @Async
     public void sendDelete(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {

@@ -35,18 +35,20 @@ public class SchoolService {
     private final SchoolNotificationSender schoolNotificationSender;
     private final SubscriberRepository subscriberRepository;
     private final SubscriberMapper subscriberMapper;
+    private final ThreadService threadService;
     private static final int EXPECTED_SUBSCRIBER_COUNT = 1;
     @Autowired
     public SchoolService(SchoolRepository schoolRepository,
                          SchoolMapper schoolMapper,
                          SchoolNotificationSender schoolNotificationSender,
                          SubscriberRepository subscriberRepository,
-                         SubscriberMapper subscriberMapper) {
+                         SubscriberMapper subscriberMapper, ThreadService threadService) {
         this.schoolRepository = schoolRepository;
         this.schoolMapper = schoolMapper;
         this.schoolNotificationSender = schoolNotificationSender;
         this.subscriberRepository = subscriberRepository;
         this.subscriberMapper = subscriberMapper;
+        this.threadService = threadService;
     }
 
     @Transactional
@@ -54,6 +56,7 @@ public class SchoolService {
         SchoolEntity newSchool = schoolMapper.toEntity(schoolCreateDTO);
         SchoolEntity savedSchool = schoolRepository.save(newSchool);
         SchoolEntityDTO createdDto = schoolMapper.toDto(savedSchool);
+        threadService.addSchoolCreated(createdDto);
 
         List<SubscriberDto> subscribers = getSubscribersForSchool(savedSchool);
         for (SubscriberDto subscriber : subscribers) {
@@ -78,6 +81,7 @@ public class SchoolService {
         SchoolEntity updatedSchool = schoolRepository.save(fromDb.get());
         SchoolUpdateDto schoolUpdateDto = new SchoolUpdateDto(old, schoolEntityDTO);
         List<SubscriberDto> subscribers = getSubscribersForSchool(updatedSchool);
+        threadService.addSchoolUpdated(schoolUpdateDto);
 
         for (SubscriberDto subscriber : subscribers) {
             if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_UPDATE)) {
@@ -102,6 +106,7 @@ public class SchoolService {
         SchoolEntity existingSchool = fromDb.get();
         SchoolEntityDTO schoolDto = schoolMapper.toDto(existingSchool);
         List<SubscriberDto> subscribers = getSubscribersForSchool(existingSchool);
+        threadService.addSchoolDeleted(schoolDto);
 
         for (SubscriberDto subscriber : subscribers) {
             if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_DELETE)) {

@@ -23,8 +23,8 @@ public class SchoolNotificationThread extends Thread {
     @Setter
     private final SchoolNotificationSender notificationSender;
     private final NotificationStatusService notificationStatusService;
-    private final int maxRetries = 3;
-    private final long retryInterval = 5000;
+    private static final int MAX_RETRIES = 3;
+    private static final long RETRY_INTERVAL = 5000;
 
     @Autowired
     public SchoolNotificationThread(
@@ -43,6 +43,7 @@ public class SchoolNotificationThread extends Thread {
     public void addSubscriber(SubscriberDto subscriberDto) {
         mapSubscribers.get(subscriberDto.getEventType()).add(subscriberDto);
     }
+
 
     public void removeSubscriber(Long subscriberId) {
         boolean found = false;
@@ -178,7 +179,7 @@ private boolean checkAndSendCreate() {
         int attempt = 0;
         boolean delivered = false;
 
-        while (attempt < maxRetries && !delivered) {
+        while (attempt < MAX_RETRIES && !delivered) {
             try {
                 sendNotification(task);
                 delivered = true;
@@ -187,9 +188,9 @@ private boolean checkAndSendCreate() {
             } catch (NotificationProcessingException e) {
                 attempt++;
 
-                if (attempt < maxRetries) {
+                if (attempt < MAX_RETRIES) {
                     try {
-                        Thread.sleep(retryInterval);
+                        Thread.sleep(RETRY_INTERVAL);
                     } catch (InterruptedException ie) {}
                 } else {
                     notificationStatusService.saveNotificationStatus(task, "не доставлено", attempt);
