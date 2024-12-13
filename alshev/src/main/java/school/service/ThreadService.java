@@ -1,5 +1,6 @@
 package school.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import school.dto.SchoolEntityDTO;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class ThreadService {
     private SchoolNotificationThread schoolNotificationThread = null;
     private final SubscriberRepository subscriberRepository;
@@ -38,13 +40,24 @@ public class ThreadService {
         this.notificationStatusRepository = notificationStatusRepository;
         this.notificationStatusService = notificationStatusService;
     }
-
     private void checkAndStart() {
-        if (schoolNotificationThread != null)
-            return;
+        if (schoolNotificationThread == null) {
+            schoolNotificationThread = new SchoolNotificationThread(
+                    notificationSender,
+                    notificationStatusService
+            );
+            List<SubscriberDto> subscribers = getSubscribers();
 
-        schoolNotificationThread = new SchoolNotificationThread(notificationSender, notificationStatusService);
-        schoolNotificationThread.start();
+            for (SubscriberDto subscriber : subscribers) {
+                if (SubscriberDto.EVENT_ON_CREATE.equals(subscriber.getEventType()) ||
+                        SubscriberDto.EVENT_ON_UPDATE.equals(subscriber.getEventType()) ||
+                        SubscriberDto.EVENT_ON_DELETE.equals(subscriber.getEventType())) {
+                    schoolNotificationThread.addSubscriber(subscriber);
+                }
+            }
+
+            schoolNotificationThread.start();
+        }
     }
 
     public void addSubscriber(SubscriberDto subscriberDto) {
@@ -75,11 +88,10 @@ public class ThreadService {
                 .collect(Collectors.toList());
     }
 
-    public void addSchoolCreated(SchoolEntityDTO schoolEntityDTO) {
-        checkAndStart();
-        schoolNotificationThread.addSchoolCreated(schoolEntityDTO);
-    }
-
+public void addSchoolCreated(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriber) {
+    checkAndStart();
+    schoolNotificationThread.addSchoolCreated(schoolEntityDTO);
+}
     public void addSchoolUpdated(SchoolUpdateDto schoolUpdateDto) {
         checkAndStart();
         schoolNotificationThread.addSchoolUpdated(schoolUpdateDto);

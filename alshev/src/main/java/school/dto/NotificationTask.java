@@ -1,4 +1,4 @@
-package school.service;
+package school.dto;
 
 import lombok.Data;
 import school.dto.SchoolEntityDTO;

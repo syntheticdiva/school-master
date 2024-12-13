@@ -15,20 +15,25 @@ import java.time.LocalDateTime;
 @Slf4j
 @Service
 public class SchoolNotificationSender {
-    private final NotificationStatusService notificationStatusService;
     private final RestTemplate restTemplate;
+    private final NotificationStatusService notificationStatusService;
 
     private static final int MAX_RETRIES = 3;
     private static final long RETRY_INTERVAL = 5000;
 
     @Autowired
-    public SchoolNotificationSender(NotificationStatusService notificationStatusService, RestTemplate restTemplate) {
-        this.notificationStatusService = notificationStatusService;
+    public SchoolNotificationSender(
+            RestTemplate restTemplate,
+            NotificationStatusService notificationStatusService
+    ) {
         this.restTemplate = restTemplate;
+        this.notificationStatusService = notificationStatusService;
     }
+
     @Async
     public void sendCreate(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        boolean delivered = false;
+        for (int attempt = 1; attempt <= MAX_RETRIES && !delivered; attempt++) {
             try {
                 SchoolOnCreateDto createDto = new SchoolOnCreateDto(
                         schoolEntityDTO.getId(),
@@ -43,8 +48,9 @@ public class SchoolNotificationSender {
                         String.class
                 );
 
-                log.info("Creation notification sent successfully to {}. Response: {}",
-                        subscriberDto.getUrl(), response);
+                if (!response.getStatusCode().is2xxSuccessful()) {
+                    throw new RestClientException("Unsuccessful response: " + response.getStatusCode());
+                }
 
                 notificationStatusService.saveNotificationStatus(
                         subscriberDto,
@@ -52,10 +58,9 @@ public class SchoolNotificationSender {
                         "доставлено",
                         attempt
                 );
+                delivered = true;
                 return;
             } catch (RestClientException e) {
-                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, MAX_RETRIES, e);
-
                 if (attempt == MAX_RETRIES) {
                     notificationStatusService.saveNotificationStatus(
                             subscriberDto,
@@ -65,11 +70,12 @@ public class SchoolNotificationSender {
                     );
                     break;
                 }
-
                 sleep();
             }
         }
     }
+
+
     @Async
     public void sendUpdate(SchoolUpdateDto schoolUpdateDto, SubscriberDto subscriberDto) {
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -80,8 +86,9 @@ public class SchoolNotificationSender {
                         String.class
                 );
 
-                log.info("Update notification sent successfully to {}. Response: {}",
-                        subscriberDto.getUrl(), response);
+                if (!response.getStatusCode().is2xxSuccessful()) {
+                    throw new RestClientException("Unsuccessful response: " + response.getStatusCode());
+                }
 
                 notificationStatusService.saveNotificationStatus(
                         subscriberDto,
@@ -91,8 +98,6 @@ public class SchoolNotificationSender {
                 );
                 return;
             } catch (RestClientException e) {
-                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, MAX_RETRIES, e);
-
                 if (attempt == MAX_RETRIES) {
                     notificationStatusService.saveNotificationStatus(
                             subscriberDto,
@@ -102,11 +107,11 @@ public class SchoolNotificationSender {
                     );
                     break;
                 }
-
                 sleep();
             }
         }
     }
+
     @Async
     public void sendDelete(SchoolEntityDTO schoolEntityDTO, SubscriberDto subscriberDto) {
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -123,8 +128,9 @@ public class SchoolNotificationSender {
                         String.class
                 );
 
-                log.info("Deletion notification sent successfully to {}. Response: {}",
-                        subscriberDto.getUrl(), response);
+                if (!response.getStatusCode().is2xxSuccessful()) {
+                    throw new RestClientException("Unsuccessful response: " + response.getStatusCode());
+                }
 
                 notificationStatusService.saveNotificationStatus(
                         subscriberDto,
@@ -134,8 +140,6 @@ public class SchoolNotificationSender {
                 );
                 return;
             } catch (RestClientException e) {
-                log.error("Ошибка отправки уведомления. Попытка {}/{}", attempt, MAX_RETRIES, e);
-
                 if (attempt == MAX_RETRIES) {
                     notificationStatusService.saveNotificationStatus(
                             subscriberDto,
@@ -145,7 +149,6 @@ public class SchoolNotificationSender {
                     );
                     break;
                 }
-
                 sleep();
             }
         }
@@ -154,7 +157,8 @@ public class SchoolNotificationSender {
     private void sleep() {
         try {
             Thread.sleep(RETRY_INTERVAL);
-        } catch (InterruptedException ie) {}
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
     }
 }
-

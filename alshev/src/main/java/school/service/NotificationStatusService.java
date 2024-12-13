@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import school.dto.NotificationTask;
 import school.dto.SubscriberDto;
 import school.entity.NotificationStatus;
 import school.enums.NotificationType;
@@ -45,29 +46,26 @@ public class NotificationStatusService {
             throw e;
         }
     }
-
     @Transactional
     public void saveNotificationStatus(
             NotificationTask task,
             String status,
             int attempts
     ) {
-        if (task.getSubscriberDto() == null) {
-            throw new SubscriberNotFoundException("The notification status could not be saved: subscriberDto is null");
-        }
+        boolean exists = notificationStatusRepository.existsBySubscriberIdAndNotificationTypeAndStatus(
+                task.getSubscriberDto().getId(),
+                task.getType().name(),
+                status
+        );
 
-        NotificationStatus notificationStatus = new NotificationStatus();
-        notificationStatus.setSubscriberId(task.getSubscriberDto().getId());
-        notificationStatus.setNotificationType(task.getType().name());
-        notificationStatus.setStatus(status);
-        notificationStatus.setAttempts(attempts);
+        if (!exists) {
+            NotificationStatus notificationStatus = new NotificationStatus();
+            notificationStatus.setSubscriberId(task.getSubscriberDto().getId());
+            notificationStatus.setNotificationType(task.getType().name());
+            notificationStatus.setStatus(status);
+            notificationStatus.setAttempts(attempts);
 
-        try {
             notificationStatusRepository.save(notificationStatus);
-        } catch (DataAccessException e) {
-            throw new NotificationStatusPersistenceException("An error occurred while saving the notification status.", e);
-        } catch (RuntimeException e) {
-            throw e;
         }
     }
 }

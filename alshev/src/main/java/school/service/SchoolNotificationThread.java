@@ -1,8 +1,10 @@
 package school.service;
 
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import school.dto.NotificationTask;
 import school.dto.SchoolEntityDTO;
 import school.dto.SchoolUpdateDto;
 import school.dto.SubscriberDto;
@@ -13,7 +15,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-@Component
 public class SchoolNotificationThread extends Thread {
     private HashMap<String, ArrayList<SubscriberDto>> mapSubscribers;
     private ArrayList<SchoolEntityDTO> createdSchools = new ArrayList<>();
@@ -43,7 +44,6 @@ public class SchoolNotificationThread extends Thread {
     public void addSubscriber(SubscriberDto subscriberDto) {
         mapSubscribers.get(subscriberDto.getEventType()).add(subscriberDto);
     }
-
 
     public void removeSubscriber(Long subscriberId) {
         boolean found = false;
@@ -97,31 +97,33 @@ public class SchoolNotificationThread extends Thread {
         }
     }
 
-private boolean checkAndSendCreate() {
-    if (createdSchools.isEmpty())
-        return false;
+    private boolean checkAndSendCreate() {
+        if (createdSchools.isEmpty()) {
+            return false;
+        }
 
-    SchoolEntityDTO first = createdSchools.remove(0);
-    ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_CREATE);
+        SchoolEntityDTO first = createdSchools.remove(0);
+        ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_CREATE);
 
-    if (subscribers.isEmpty()) {
+        if (subscribers.isEmpty()) {
+            return true;
+        }
+
+        for (SubscriberDto subscriber : subscribers) {
+            if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_CREATE)) {
+                NotificationTask task = new NotificationTask(first, subscriber);
+                processNotification(task);
+            }
+        }
         return true;
     }
 
-    for (SubscriberDto subscriber : subscribers) {
-        NotificationTask task = new NotificationTask(first, subscriber);
-        processNotification(task);
-    }
-    return true;
-}
-
-
     private boolean checkAndSendUpdate() {
-        if (updatedSchools.isEmpty())
+        if (updatedSchools.isEmpty()) {
             return false;
+        }
 
-        SchoolUpdateDto first = updatedSchools.get(0);
-        updatedSchools.remove(0);
+        SchoolUpdateDto first = updatedSchools.remove(0);
         ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_UPDATE);
 
         if (subscribers.isEmpty()) {
@@ -129,15 +131,18 @@ private boolean checkAndSendCreate() {
         }
 
         for (SubscriberDto subscriber : subscribers) {
-            NotificationTask task = new NotificationTask(first, subscriber);
-            processNotification(task);
+            if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_UPDATE)) {
+                NotificationTask task = new NotificationTask(first, subscriber);
+                processNotification(task);
+            }
         }
         return true;
     }
 
     private boolean checkAndSendDelete() {
-        if (deletedSchools.isEmpty())
+        if (deletedSchools.isEmpty()) {
             return false;
+        }
 
         SchoolEntityDTO first = deletedSchools.remove(0);
         ArrayList<SubscriberDto> subscribers = mapSubscribers.get(SubscriberDto.EVENT_ON_DELETE);
@@ -147,8 +152,10 @@ private boolean checkAndSendCreate() {
         }
 
         for (SubscriberDto subscriber : subscribers) {
-            NotificationTask task = new NotificationTask(first, subscriber, true);
-            processNotification(task);
+            if (subscriber.getEventType().equals(SubscriberDto.EVENT_ON_DELETE)) {
+                NotificationTask task = new NotificationTask(first, subscriber, true);
+                processNotification(task);
+            }
         }
         return true;
     }
@@ -180,20 +187,20 @@ private boolean checkAndSendCreate() {
         boolean delivered = false;
 
         while (attempt < MAX_RETRIES && !delivered) {
+            attempt++;
             try {
                 sendNotification(task);
+                notificationStatusService.saveNotificationStatus(task, "доставлено", attempt);
                 delivered = true;
-
-                notificationStatusService.saveNotificationStatus(task, "доставлено", attempt + 1);
-            } catch (NotificationProcessingException e) {
-                attempt++;
-
-                if (attempt < MAX_RETRIES) {
+            } catch (Exception e) {
+                if (attempt == MAX_RETRIES) {
+                    notificationStatusService.saveNotificationStatus(task, "не доставлено", attempt);
+                } else {
                     try {
                         Thread.sleep(RETRY_INTERVAL);
-                    } catch (InterruptedException ie) {}
-                } else {
-                    notificationStatusService.saveNotificationStatus(task, "не доставлено", attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
         }
