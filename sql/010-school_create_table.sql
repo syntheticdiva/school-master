@@ -6,7 +6,7 @@
 
 /* Drop Tables */
 
-DROP TABLE IF EXISTS school CASCADE
+--DROP TABLE IF EXISTS school CASCADE--
 ;
 
 /* Create Tables */

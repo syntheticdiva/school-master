@@ -6,7 +6,7 @@
 
 /* Drop Tables */
 
-DROP TABLE IF EXISTS subscribers CASCADE
+--DROP TABLE IF EXISTS subscribers CASCADE--
 ;
 
 /* Create Tables */

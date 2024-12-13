@@ -6,7 +6,7 @@
 
 /* Drop Tables */
 
-DROP TABLE IF EXISTS notification_status CASCADE
+--DROP TABLE IF EXISTS notification_status CASCADE--
 ;
 
 /* Create Tables */
