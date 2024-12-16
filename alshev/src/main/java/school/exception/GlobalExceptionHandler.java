@@ -272,6 +272,18 @@ public ResponseEntity<ErrorResponse> handleSchoolNotFoundException(SchoolNotFoun
                 .status(HttpStatus.CONFLICT)
                 .body(error);
     }
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Ошибка валидации",
+                ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(error);
+    }
 
     private String createErrorResponse(String userMessage, String technicalMessage, Model model) {
         model.addAttribute("errorMessage", userMessage);

@@ -1,6 +1,7 @@
 package school.service;
 
 import jakarta.transaction.Transactional;
+import org.apache.commons.validator.routines.UrlValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,8 @@ import school.exception.SubscriberServiceException;
 import school.mapper.SubscriberMapper;
 import school.repository.SubscriberRepository;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -30,9 +33,15 @@ public class SubscriberService {
         this.threadService = threadService;
         this.subscriberMapper = subscriberMapper;
     }
+    private static final UrlValidator URL_VALIDATOR = new UrlValidator(
+            new String[]{"http", "https"},
+            UrlValidator.ALLOW_LOCAL_URLS
+    );
 
     @Transactional
     public SubscriberEntity createSubscriber(SubscriberDto subscriberDto) {
+        validateUrl(subscriberDto.getUrl());
+
         SubscriberEntity entity = new SubscriberEntity();
         entity.setEntity(
                 Optional.ofNullable(subscriberDto.getEntity())
@@ -48,7 +57,10 @@ public class SubscriberService {
         try {
             return subscriberRepository.save(entity);
         } catch (DataAccessException e) {
-            throw new SubscriberServiceException("Error creating subscriber due to data access issue", e);
+            throw new SubscriberServiceException(
+                    "Error creating subscriber: invalid URL",
+                    e
+            );
         }
     }
 
@@ -56,6 +68,10 @@ public class SubscriberService {
     public SubscriberEntity updateSubscriber(Long id, SubscriberDto subscriberDto) {
         SubscriberEntity existingEntity = subscriberRepository.findById(id)
                 .orElseThrow(() -> new SubscriberNotFoundException("Subscriber not found with id: " + id));
+
+        if (subscriberDto.getUrl() != null) {
+            validateUrl(subscriberDto.getUrl());
+        }
 
         existingEntity.setEntity(
                 Optional.ofNullable(subscriberDto.getEntity())
@@ -73,10 +89,9 @@ public class SubscriberService {
         try {
             return subscriberRepository.save(existingEntity);
         } catch (DataAccessException e) {
-            throw new SubscriberServiceException("Error updating subscriber due to data access issue", e);
+            throw new SubscriberServiceException("Subscriber update error", e);
         }
     }
-
     @Transactional
     public void deleteSubscriber(Long id) {
         SubscriberEntity existingEntity = subscriberRepository.findById(id)
@@ -97,4 +112,24 @@ public class SubscriberService {
                 .map(subscriberMapper::toDto)
                 .collect(Collectors.toList());
     }
+    private void validateUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            throw new IllegalArgumentException("URL cannot be empty");
+        }
+
+        if (!URL_VALIDATOR.isValid(url)) {
+            throw new IllegalArgumentException("Invalid URL: " + url);
+        }
+
+        try {
+            URI uri = new URI(url);
+
+            if (url.length() > 2000) {
+                throw new IllegalArgumentException("URL is too long");
+            }
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("URL parsing error: " + url, e);
+        }
+    }
+
 }
