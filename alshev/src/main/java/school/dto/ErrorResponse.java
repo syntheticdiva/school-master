@@ -1,4 +1,4 @@
-package school.exception;
+package school.dto;
 
 import lombok.Data;
 
