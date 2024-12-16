@@ -51,11 +51,26 @@ public class SchoolService {
         this.threadService = threadService;
     }
     public SchoolEntityDTO create(SchoolCreateDTO schoolCreateDTO) {
+        if (schoolCreateDTO.getName() == null || schoolCreateDTO.getName().trim().isEmpty()) {
+            throw new SchoolValidationException("School name cannot be empty");
+        }
+
+        if (schoolRepository.existsByNameAndAddress(
+                schoolCreateDTO.getName(),
+                schoolCreateDTO.getAddress())
+        ) {
+            throw new DuplicateSchoolException("A school with this name and address already exists.");
+        }
         SchoolEntity newSchool = schoolMapper.toEntity(schoolCreateDTO);
-        SchoolEntity savedSchool = schoolRepository.save(newSchool);
+        SchoolEntity savedSchool;
+
+        try {
+            savedSchool = schoolRepository.save(newSchool);
+        } catch (DataAccessException e) {
+            throw new SchoolServiceException("Error creating school: " + e.getMessage(), e);
+        }
 
         SchoolEntityDTO createdDto = schoolMapper.toDto(savedSchool);
-
         List<SubscriberDto> subscribers = threadService.getSubscribers();
 
         for (SubscriberDto subscriber : subscribers) {
@@ -69,12 +84,18 @@ public class SchoolService {
     public SchoolEntityDTO update(Long id, SchoolEntityDTO schoolEntityDTO) {
         Optional<SchoolEntity> fromDb = schoolRepository.findById(id);
         if (!fromDb.isPresent()) {
-            throw new ResourceNotFoundException(String.valueOf(id));
+            throw new ResourceNotFoundException("School with ID " + id + " not found.");
         }
 
         SchoolEntityDTO old = schoolMapper.toDto(fromDb.get());
         schoolMapper.updateEntityFromDto(schoolEntityDTO, fromDb.get());
-        SchoolEntity updatedSchool = schoolRepository.save(fromDb.get());
+        SchoolEntity updatedSchool;
+
+        try {
+            updatedSchool = schoolRepository.save(fromDb.get());
+        } catch (DataAccessException e) {
+            throw new SchoolServiceException("Error updating school: " + e.getMessage(), e);
+        }
 
         SchoolUpdateDto schoolUpdateDto = new SchoolUpdateDto(old, schoolEntityDTO);
         List<SubscriberDto> subscribers = threadService.getSubscribers();
@@ -91,7 +112,7 @@ public class SchoolService {
     public void delete(Long id) {
         Optional<SchoolEntity> fromDb = schoolRepository.findById(id);
         if (!fromDb.isPresent()) {
-            throw new ResourceNotFoundException(String.valueOf(id));
+            throw new ResourceNotFoundException("School with ID " + id + " not found.");
         }
 
         SchoolEntity existingSchool = fromDb.get();
@@ -107,7 +128,7 @@ public class SchoolService {
         try {
             schoolRepository.delete(existingSchool);
         } catch (DataAccessException e) {
-            throw new SchoolServiceException("Error deleting the school", e);
+            throw new SchoolServiceException("Error deleting school: " + e.getMessage(), e);
         }
     }
     public List<SubscriberDto> getSubscribersForSchool(SchoolEntity schoolEntity) {

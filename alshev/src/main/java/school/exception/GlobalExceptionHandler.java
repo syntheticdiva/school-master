@@ -236,6 +236,43 @@ public ResponseEntity<ErrorResponse> handleSchoolNotFoundException(SchoolNotFoun
         log.error("Ошибка: {}", message, ex);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(message);
     }
+    @ExceptionHandler(SchoolBaseException.class)
+    public ResponseEntity<ErrorResponse> handleSchoolBaseException(SchoolBaseException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Системная ошибка в сервисе школ",
+                ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(error);
+    }
+    @ExceptionHandler(SchoolValidationException.class)
+    public ResponseEntity<ErrorResponse> handleSchoolValidationException(SchoolValidationException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Ошибка валидации данных школы",
+                ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(error);
+    }
+    @ExceptionHandler(DuplicateSchoolException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateSchoolException(DuplicateSchoolException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                "Школа с указанными параметрами уже существует",
+                ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(error);
+    }
+
     private String createErrorResponse(String userMessage, String technicalMessage, Model model) {
         model.addAttribute("errorMessage", userMessage);
         model.addAttribute("technicalDetails", technicalMessage);
